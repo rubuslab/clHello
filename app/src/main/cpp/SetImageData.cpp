@@ -1,10 +1,9 @@
-#include <sys/time.h>
-
 #include <iostream>
 #include <string>
 #include <vector>
 
 #include "hello.h"
+#include "SetImageData.h"
 
 
 //#if __OPENCL_VERSION__ <= CL_VERSION_1_1
@@ -12,12 +11,6 @@
 //#endif
 
 #include "CL/cl.hpp"
-
-uint64_t GetMilliseconds() {
-    struct timeval tv;
-    gettimeofday(&tv, nullptr);
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
 
 /*
  * std::string kernel_code = "void kernel simple_add(global const int *A, global int *B) {"
@@ -32,27 +25,16 @@ std::string gHelloWorldC =  "\n"
                             "out[num] = in[num] * 2.0;\n"
                             "}\n";
 */
-std::string gHelloWorldC =  "kernel void helloworld(global const int* in, global int* out) {\n"
-                            "  int num = get_global_id(0);"
-                            "  out[num] = in[num] * 2.0;"
+// https://blog.csdn.net/fangyizhitc/article/details/112369120
+// 遵循这个计算公式：get_global_id(dim) = get_local_size(dim) * get_group_id(dim) + get_local_id(dim)；
+std::string gUpdateImageDataCode =  "kernel void kSetImageData(global int* in) {"
+                                "int height = get_local_size(1) * get_group_id(1) + get_local_id(1);"
+                                "int x = get_local_size(0) * get_group_id(0) + get_local_id(0);"
+                                "int index = height * get_global_size(0) + x;"
+                                "  in[index] = index;"
                             "}";
 
-void Log(std::string err) {
-    std::cout << err << std::endl;
-}
-
-// CL_DEVICE_TYPE_ALL
-// CL_DEVICE_TYPE_CPU
-// CL_DEVICE_TYPE_GPU
-void GetDevices(const std::vector<cl::Platform>& platforms, cl_device_type type, std::vector<cl::Device>* devices) {
-    for(int i = 0; i < platforms.size(); ++i) {
-        std::vector<cl::Device> temp_devices;
-        platforms[i].getDevices(type, &temp_devices);
-        devices->insert(devices->end(), temp_devices.begin(), temp_devices.end());
-    }
-}
-
-void TryAdd() {
+void SetImageData(int width, int height, int* img_data) {
     // get platforms
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
@@ -72,7 +54,7 @@ void TryAdd() {
 
     // build device program
     cl::Program::Sources sources;
-    sources.push_back({gHelloWorldC.c_str(), gHelloWorldC.length()});
+    sources.push_back({gUpdateImageDataCode.c_str(), gUpdateImageDataCode.length()});
     cl::Program program_ = cl::Program(context, sources);
     if ((err = program_.build({target_device})) != CL_SUCCESS) {
         Log("Error building: " + program_.getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device));
@@ -81,14 +63,15 @@ void TryAdd() {
 
     // prepare buffer
     /**Step 7: Initial input,output for the host and create memory objects for the kernel*/
-    const int NUM = 512000;
-    int* input = new int[NUM];
-    for(int i = 0; i < NUM; ++i)
-        input[i] = i;
-    int* output = new int[NUM];
+    int* input = img_data;
+    const int NUM = width * height;
+    //int* input = new int[NUM];
+    //for(int i = 0; i < NUM; ++i)
+    //    input[i] = i;
+    //int* output = new int[NUM];
 
-    cl::Buffer inputBuffer = cl::Buffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, (NUM) * sizeof(int), (void*)input, &err);
-    cl::Buffer outputBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, NUM * sizeof(int), NULL, &err);
+    cl::Buffer inputBuffer = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (NUM) * sizeof(int), (void*)input, &err);
+    // cl::Buffer outputBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, NUM * sizeof(int), NULL, &err);
 
     // create queue
     cl::CommandQueue queue(context, devices[0], 0, &err);
@@ -97,55 +80,25 @@ void TryAdd() {
 
     /**Step 9: Sets Kernel arguments.*/
     // bind kernel function
-    cl::Kernel kernel(program_, "helloworld", &err);
+    cl::Kernel kernel(program_, "kSetImageData", &err);
     err = kernel.setArg(0, inputBuffer);
-    err = kernel.setArg(1, outputBuffer);
+    // err = kernel.setArg(1, outputBuffer);
 
     /**Step 10: Running the kernel.*/
     // run kernel function
     cl::Event event;
-    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(NUM), cl::NullRange, NULL, &event);
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(width, height),
+                                     cl::NDRange(width / 10, height / 10), NULL, &event);
     // event.wait();
     queue.finish();
 
     /**Step 11: Read the cout put back to host memory.*/
     // read result, read the result put back to host memory
-    queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, NUM * sizeof(int), output, 0, NULL);
-    std::cout << output[NUM-1] << std::endl;
+    // queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, NUM * sizeof(int), output, 0, NULL);
+    queue.enqueueReadBuffer(inputBuffer, CL_TRUE, 0, NUM * sizeof(int), input, 0, NULL);
+    std::cout << input[NUM - 1] << std::endl;
 
     /**Step 12: Clean the resources.*/
     //cl_int status = clReleaseMemObject(inputBuffer);//Release mem object.
     //status = clReleaseMemObject(outputBuffer);
-
-    delete []input;
-    delete []output;
-}
-
-std::string Hello() {
-    printf("Hello world...");
-
-    std::string sz = "devices : ";
-
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.size() == 0) {
-        // std::cout << "Platform size 0\n";
-        return "no platforms";
-    }
-    for (int i = 0; i < platforms.size(); ++i) {
-        std::vector<cl::Device> devices;
-        platforms[i].getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        for (int j = 0; j < devices.size(); ++j) {
-            sz += "name ";
-            sz += std::string(devices[j].getInfo<CL_DEVICE_NAME>()); // device name
-            sz += ", vendor ";
-            sz += std::string(devices[j].getInfo<CL_DEVICE_VENDOR>());
-            sz += " | ";
-        }
-    }
-
-    TryAdd();
-
-    return sz;
-    return "Hello";
 }

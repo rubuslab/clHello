@@ -20,7 +20,7 @@ add_library( # Sets the name of the library.
         SHARED
 
         # Provides a relative path to your source file(s).
-        native-lib.cpp hello.cpp)
+        native-lib.cpp hello.cpp SetImageData.cpp YuvConvertOpencc.cpp)
 include_directories(${CMAKE_SOURCE_DIR}/../prebuilt_cc_libs/OpenCL/include)
 
 # 打印日志信息
