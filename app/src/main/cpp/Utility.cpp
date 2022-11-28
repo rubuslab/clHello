@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "hello.h"
+#include "Utility.h"
 
 
 //#if __OPENCL_VERSION__ <= CL_VERSION_1_1

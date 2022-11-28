@@ -1,7 +1,7 @@
 #include <jni.h>
 #include <string>
 
-#include "hello.h"
+#include "Utility.h"
 #include "SetImageData.h"
 #include "YuvConvertOpencc.h"
 

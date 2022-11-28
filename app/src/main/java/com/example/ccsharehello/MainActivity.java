@@ -47,12 +47,25 @@ public class MainActivity extends AppCompatActivity {
     public void onButtonI420ToNV12Click(View view) {
         //int width = 32;
         //int height = 24;
-        int width = 32;
-        int height = 32;
-        byte[] img = new byte[width * height];
+        int width = 1080;  // 1080
+        int height = 1920;  // 1920
+        byte[] img = new byte[(int)(width * height * 1.5)];
+        // set i420 uv data
+        int uv_width = width / 2;
+        int uv_height = height / 2;
+        int u_start = width * height;
+        int v_start = u_start + (uv_width * uv_height);
+        for (int h = 0; h <uv_height; ++h) {
+            for (int w = 0; w < uv_width; ++w) {
+                int offset = uv_width * h + w;
+                img[u_start + offset] = 1;
+                img[v_start + offset] = 2;
+            }
+        }
         boolean ok = ConvertI420ToNV12JNI(width, height, img);
-        String sz = img.toString();
-        Log.i("TEST", sz);
+        img = null;
+        // String sz = img.toString();
+        // Log.i("TEST", sz);
     }
 
     /**

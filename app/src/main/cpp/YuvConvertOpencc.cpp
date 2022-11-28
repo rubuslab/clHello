@@ -3,30 +3,40 @@
 
 #include "CL/cl.hpp"
 
-#include "hello.h"
+#include "Utility.h"
 #include "YuvConvertOpencc.h"
 
-void YuvI420ToNV12Opencc::Log(std::string message) {
-    std::cout << message << std::endl;
+void YuvI420ToNV12OpenCc::Log(std::string message) {
+    // std::cout << message << std::endl;
 }
 
-void YuvI420ToNV12Opencc::Release() {
-    m_Devices.clear();
-    delete m_Context; m_Context = nullptr;
-    delete m_Program; m_Program = nullptr;
-    // delete m_inputBuffer; m_inputBuffer = nullptr;
-    delete m_Queue; m_Queue = nullptr;
-    delete m_Kernel; m_Kernel = nullptr;
+void YuvI420ToNV12OpenCc::Release() {
+    m_devices.clear();
+    delete m_context; m_context = nullptr;
+    delete m_program; m_program = nullptr;
+    delete m_queue; m_queue = nullptr;
+    delete m_kernel_yuvi420_to_nv12; m_kernel_yuvi420_to_nv12 = nullptr;
 }
 
-bool YuvI420ToNV12Opencc::Init() {
-    std::string UpdateImageDataCode =  "kernel void kSetImageData(global unsigned char* in) {"
-                                       "int height = get_local_size(1) * get_group_id(1) + get_local_id(1);"
-                                       "int x = get_local_size(0) * get_group_id(0) + get_local_id(0);"
-                                       "int index = height * get_global_size(0) + x;"
-                                       "in[index] = index % 256;"
+bool YuvI420ToNV12OpenCc::Init() {
+    std::string UpdateImageDataCode =  "kernel void kYuvI420ToNV12(global const unsigned char* in_i420_uv,"
+                                       "                         global unsigned char* nv12_uv_buff,"
+                                       "                         const int width, const int height,"
+                                       "                         const int lines_per_group) {"
+                                       "  int gid = get_global_id(0);"
+                                       "  int start_u = width * lines_per_group * gid;"
+                                       "  int start_v = (width * height) + start_u;"
+                                       ""
+                                       "  int nv12_uv_start = (width * 2) * lines_per_group * gid;"
+                                       "  int max = width * lines_per_group;"
+                                       "  for (int i = 0; i < max; ++i) {"
+                                       "    int index = nv12_uv_start + i * 2;"
+                                       "    nv12_uv_buff[index] = in_i420_uv[start_u + i];"
+                                       "    nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];"
+                                       "  }"
                                        "}";
 
+    cl_int err = CL_SUCCESS;
     // get platforms
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
@@ -34,218 +44,90 @@ bool YuvI420ToNV12Opencc::Init() {
     // std::string platform_name = platforms[0].getInfo<CL_PLATFORM_NAME>();
 
     // get devices of GPU
-    GetDevices(platforms, CL_DEVICE_TYPE_GPU, &m_Devices);
-    if (m_Devices.size() == 0) { Log("can not get any GPU devices."); return false; }
-    cl::Device& target_device = m_Devices[0];
+    GetDevices(platforms, CL_DEVICE_TYPE_GPU, &m_devices);
+    if (m_devices.size() == 0) { Log("can not get any GPU devices."); return false; }
+    cl::Device& target_device = m_devices[0];
     std::string use_device_name = target_device.getInfo<CL_DEVICE_NAME>();
 
+    // get max workgroups, must <= CL_DEVICE_MAX_WORK_GROUP_SIZE
+    int num_compute_units = 0;
+    err = target_device.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &num_compute_units);
+    m_max_device_workgroups = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+    int u_height = m_height / 2;  // u channels
+    m_workgroups = u_height;
+    for (int i = 1; i <= u_height; ++i) {
+        if (u_height % i == 0) {
+            int groups = u_height / i;
+            if (groups <= m_max_device_workgroups) {
+                m_workgroups = groups;
+                break;
+            }
+        }
+    }
+
     // create context
-    cl_int err = CL_SUCCESS;
-    m_Context = new cl::Context({target_device});
+    m_context = new cl::Context({target_device});
 
     // build device program
     cl::Program::Sources sources;
     sources.push_back({UpdateImageDataCode.c_str(), UpdateImageDataCode.length()});
-    m_Program = new cl::Program(*m_Context, sources);
-    if ((err = m_Program->build({target_device})) != CL_SUCCESS) {
-        Log("Error building: " + m_Program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device));
+    m_program = new cl::Program(*m_context, sources);
+    if ((err = m_program->build({target_device})) != CL_SUCCESS) {
+        Log("Error building: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device));
         return false;
     }
-
-    // prepare buffer
-    /**Step 7: Initial input,output for the host and create memory objects for the kernel*/
-    //int* input = img_data;
-    //const int NUM = width * height;
-    //int* input = new int[NUM];
-    //for(int i = 0; i < NUM; ++i)
-    //    input[i] = i;
-    //int* output = new int[NUM];
-
-    // m_InputBuffer = new cl::Buffer(m_Context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (NUM) * sizeof(int), (void*)input, &err);
-    // cl::Buffer outputBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, NUM * sizeof(int), NULL, &err);
+    // bind kernel function
+    m_kernel_yuvi420_to_nv12 = new cl::Kernel(*m_program, "kYuvI420ToNV12", &err);
+    if (err != CL_SUCCESS) { return false; }
 
     // create queue
-    m_Queue = new cl::CommandQueue(*m_Context, target_device, 0, &err);
+    m_queue = new cl::CommandQueue(*m_context, target_device, 0, &err);
     if (err != CL_SUCCESS) { return false; }
-    // upload input data to target device
-    //err = queue.enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, sizeof(int) * NUM, input);
 
-    /**Step 9: Sets Kernel arguments.*/
-    // bind kernel function
-    m_Kernel = new cl::Kernel(*m_Program, "kSetImageData", &err);
-    if (err != CL_SUCCESS) { return false; }
-    //err = kernel.setArg(0, inputBuffer);
-    // err = kernel.setArg(1, outputBuffer);
-
-    /**Step 10: Running the kernel.*/
-    // run kernel function
-    //cl::Event event;
-    //err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(width, height),
-    //                                 cl::NDRange(width / 10, height / 10), NULL, &event);
-    // event.wait();
-    //queue.finish();
-
-    /**Step 11: Read the cout put back to host memory.*/
-    // read result, read the result put back to host memory
-    // queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, NUM * sizeof(int), output, 0, NULL);
-    //queue.enqueueReadBuffer(inputBuffer, CL_TRUE, 0, NUM * sizeof(int), input, 0, NULL);
-    //std::cout << input[NUM - 1] << std::endl;
-
-    /**Step 12: Clean the resources.*/
-    //cl_int status = clReleaseMemObject(inputBuffer);//Release mem object.
-    //status = clReleaseMemObject(outputBuffer);
     return true;
 }
 
-bool YuvI420ToNV12Opencc::ConvertToNV12Impl(int width, int height, unsigned char* img_data) {
+bool YuvI420ToNV12OpenCc::ConvertToNV12Impl(int width, int height, unsigned char* yuv_i420_img_data) {
     cl_int err = CL_SUCCESS;
-    // prepare buffer
-    /**Step 7: Initial input,output for the host and create memory objects for the kernel*/
-    unsigned char* input = img_data;
-    const int NUM = width * height;
-    //int* input = new int[NUM];
-    //for(int i = 0; i < NUM; ++i)
-    //    input[i] = i;
-    //int* output = new int[NUM];
+    unsigned char* input_uv = yuv_i420_img_data + (width * height);
+    const int uv_width = width / 2;
+    const int uv_height = height / 2;
+    const int NUM = uv_width * uv_height;  // only u data or only v data
+    const int U_V_BLOCKS_SIZE = NUM * 2;
 
-    cl::Buffer inputBuffer = cl::Buffer(*m_Context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (NUM) * sizeof(unsigned char), (void*)input, &err);
-    // cl::Buffer outputBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, NUM * sizeof(int), NULL, &err);
+    // create input and output buffer
+    cl::Buffer inputBuffer = cl::Buffer(*m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, (U_V_BLOCKS_SIZE) * sizeof(unsigned char), (void*)input_uv, &err);
+    cl::Buffer outputBuffer = cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, U_V_BLOCKS_SIZE * sizeof(unsigned char), NULL, &err);
 
-    // create queue
-    // cl::CommandQueue queue(context, devices[0], 0, &err);
     // upload input data to target device
-    err = m_Queue->enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, NUM * sizeof(unsigned char), input);
+    err = m_queue->enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, U_V_BLOCKS_SIZE * sizeof(unsigned char), input_uv);
 
-    /**Step 9: Sets Kernel arguments.*/
-    // bind kernel function
-    // cl::Kernel kernel(program_, "kSetImageData", &err);
-    err = m_Kernel->setArg(0, inputBuffer);
-    // err = kernel.setArg(1, outputBuffer);
+    // bind kernel function parameters
+    const int lines_per_group = uv_height / m_workgroups;
+    err = m_kernel_yuvi420_to_nv12->setArg(0, inputBuffer);
+    err = m_kernel_yuvi420_to_nv12->setArg(1, outputBuffer);
+    err = m_kernel_yuvi420_to_nv12->setArg(2, uv_width);
+    err = m_kernel_yuvi420_to_nv12->setArg(3, uv_height);
+    err = m_kernel_yuvi420_to_nv12->setArg(4, lines_per_group);
 
-    /**Step 10: Running the kernel.*/
-    // run kernel function
+    // running kernel function
+    // https://downloads.ti.com/mctools/esd/docs/opencl/execution/kernels-workgroups-workitems.html
+    // global size: work-items, 需要计算的work-item总数目。
+    // local-size: work-items in a group, 一个group是一次被调度到硬件一个内核(cpu, gpu, apu, dsp..)上的执行度量单元，
+    //             一个group需要完成WIG(work-items in a group)个work-items的计算。当WIG > 1, 则硬件计算单元多次执行对应的
+    //             kernel函数来满足完成一个group内计算WIG个work-items的要求。
+    //             显然如果只执行一次kernel函数就能完成一个group的计算要求是效率最高的。只要总work-items（实际计算中可以是“逻辑work-item”）
+    //             和groups相等，则可以做到一个group执行完成一个"逻辑work-item"的要求，而不用在一个group内多次执行kernel函数。
     cl::Event event;
-    err = m_Queue->enqueueNDRangeKernel(*m_Kernel, cl::NullRange, cl::NDRange(width, height),
-                                     cl::NDRange(width / 8, height / 8), NULL, &event);
+    // 让"逻辑work-items"和Workgroups数目相等，则每个group处理的时候只需要处理一个“逻辑work-item”
+    err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(m_workgroups),
+                                     cl::NDRange(1), NULL, &event);
     if (err != CL_SUCCESS) { return false; }
-    // event.wait();
-    m_Queue->finish();
+    event.wait();
 
-    /**Step 11: Read the cout put back to host memory.*/
     // read result, read the result put back to host memory
-    // queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, NUM * sizeof(int), output, 0, NULL);
-    err = m_Queue->enqueueReadBuffer(inputBuffer, CL_TRUE, 0, NUM * sizeof(unsigned char), input, 0, NULL);
-    std::cout << input[NUM - 1] << std::endl;
+    // overwrite input_uv
+    err = m_queue->enqueueReadBuffer(outputBuffer, CL_TRUE, 0, U_V_BLOCKS_SIZE * sizeof(unsigned char), input_uv, 0, NULL);
 
-    /**Step 12: Clean the resources.*/
-    //cl_int status = clReleaseMemObject(inputBuffer);//Release mem object.
-    //status = clReleaseMemObject(outputBuffer);
     return err == CL_SUCCESS;
 }
-
-
-//#include "hello.h"
-//#include "SetImageData.h"
-
-
-
-
-//#if __OPENCL_VERSION__ <= CL_VERSION_1_1
-//#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-//#endif
-
-// #include "CL/cl.hpp"
-
-/*
- * std::string kernel_code = "void kernel simple_add(global const int *A, global int *B) {"
-                              "     B[get_global_id(0)] = A[get_global_id(0)] * 3;"
-                              "}";
- * */
-/*
-std::string gHelloWorldC =  "\n"
-                            "__kernel void helloworld(__global int* in, __global int* out)\n"
-                            "{\n"
-                            "int num = get_global_id(0);\n"
-                            "out[num] = in[num] * 2.0;\n"
-                            "}\n";
-*/
-// https://blog.csdn.net/fangyizhitc/article/details/112369120
-// 遵循这个计算公式：get_global_id(dim) = get_local_size(dim) * get_group_id(dim) + get_local_id(dim)；
-/*
-std::string gUpdateImageDataCode =  "kernel void kSetImageData(global int* in) {"
-                                "int height = get_local_size(1) * get_group_id(1) + get_local_id(1);"
-                                "int x = get_local_size(0) * get_group_id(0) + get_local_id(0);"
-                                "int index = height * get_global_size(0) + x;"
-                                "  in[index] = index;"
-                            "}";
-
-void SetImageData(int width, int height, int* img_data) {
-    // get platforms
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    if (platforms.size() == 0) { Log("can not get any opencl platforms."); return; }
-    // std::string platform_name = platforms[0].getInfo<CL_PLATFORM_NAME>();
-
-    // get devices of GPU
-    std::vector<cl::Device> devices;
-    GetDevices(platforms, CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.size() == 0) { Log("can not get any GPU devices."); return; }
-    cl::Device& target_device = devices[0];
-    std::string use_device_name = target_device.getInfo<CL_DEVICE_NAME>();
-
-    // create context
-    cl_int err = CL_SUCCESS;
-    cl::Context context({target_device});
-
-    // build device program
-    cl::Program::Sources sources;
-    sources.push_back({gUpdateImageDataCode.c_str(), gUpdateImageDataCode.length()});
-    cl::Program program_ = cl::Program(context, sources);
-    if ((err = program_.build({target_device})) != CL_SUCCESS) {
-        Log("Error building: " + program_.getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device));
-        return;
-    }
-
-    // prepare buffer
-    // Step 7: Initial input,output for the host and create memory objects for the kernel
-    int* input = img_data;
-    const int NUM = width * height;
-    //int* input = new int[NUM];
-    //for(int i = 0; i < NUM; ++i)
-    //    input[i] = i;
-    //int* output = new int[NUM];
-
-    cl::Buffer inputBuffer = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, (NUM) * sizeof(int), (void*)input, &err);
-    // cl::Buffer outputBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, NUM * sizeof(int), NULL, &err);
-
-    // create queue
-    cl::CommandQueue queue(context, devices[0], 0, &err);
-    // upload input data to target device
-    err = queue.enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, sizeof(int) * NUM, input);
-
-    // Step 9: Sets Kernel arguments.
-    // bind kernel function
-    cl::Kernel kernel(program_, "kSetImageData", &err);
-    err = kernel.setArg(0, inputBuffer);
-    // err = kernel.setArg(1, outputBuffer);
-
-    // Step 10: Running the kernel.
-    // run kernel function
-    cl::Event event;
-    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(width, height),
-                                     cl::NDRange(width / 10, height / 10), NULL, &event);
-    // event.wait();
-    queue.finish();
-
-    //  Step 11: Read the cout put back to host memory.
-    // read result, read the result put back to host memory
-    // queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, NUM * sizeof(int), output, 0, NULL);
-    queue.enqueueReadBuffer(inputBuffer, CL_TRUE, 0, NUM * sizeof(int), input, 0, NULL);
-    std::cout << input[NUM - 1] << std::endl;
-
-    // Step 12: Clean the resources.
-    //cl_int status = clReleaseMemObject(inputBuffer);//Release mem object.
-    //status = clReleaseMemObject(outputBuffer);
-}
-
-*/
