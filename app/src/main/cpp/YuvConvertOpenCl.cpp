@@ -4,7 +4,7 @@
 #include "CL/cl.hpp"
 
 #include "Utility.h"
-#include "YuvConvertOpencc.h"
+#include "YuvConvertOpenCl.h"
 
 void YuvI420ToNV12OpenCc::Log(std::string message) {
     // std::cout << message << std::endl;

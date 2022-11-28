@@ -3,7 +3,7 @@
 
 #include "Utility.h"
 #include "SetImageData.h"
-#include "YuvConvertOpencc.h"
+#include "YuvConvertOpenCl.h"
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_ccsharehello_MainActivity_stringFromJNI(
