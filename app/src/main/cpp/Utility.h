@@ -5,7 +5,7 @@
 
 #include "CL/cl.hpp"
 
-std::string Hello();
+std::string GetDevicesName();
 
 uint64_t GetMilliseconds();
 void Log(std::string err);

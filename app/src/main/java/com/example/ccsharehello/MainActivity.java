@@ -3,11 +3,17 @@ package com.example.ccsharehello;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.app.AlertDialog;
 
 import com.example.ccsharehello.databinding.ActivityMainBinding;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -17,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private ActivityMainBinding binding;
+    private TextView mTextCost;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,12 +34,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Example of a call to a native method
         TextView tv = binding.sampleText;
-        tv.setText(stringFromJNI());
-    }
+        tv.setText(getDevicesNameFromJNI());
 
-    public void onCallAddFunClick(View view) {
-        Log.i("TEST", "Hi, call add button clicked.");
-        int count = AddJNI(10, 20);
+        mTextCost = (TextView) findViewById(R.id.text_cost);
     }
 
     public void onSetImageDataClick(View view) {
@@ -44,9 +48,60 @@ public class MainActivity extends AppCompatActivity {
         Log.i("TEST", sz);
     }
 
+    private boolean isFileExist(String filename) {
+        boolean exist = false;
+        try {
+            File f = new File(filename);
+            exist = f.exists();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return exist;
+    }
+
     public void onButtonI420ToNV12Click(View view) {
-        //int width = 32;
-        //int height = 24;
+        int width = 1280;
+        int height = 720;
+
+        // read data from file
+        String path = getExternalFilesDir("").getAbsolutePath();
+        String filename = path + "/" + "sakura_1280x720_i420.YUV";
+        if (!isFileExist(filename)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("File")
+                    .setMessage("File not exist.\n" + filename)
+                    .show();
+            return;
+        }
+
+        try {
+            FileInputStream in = new FileInputStream(filename);
+            int len = in.available();
+            byte[] i420_yuv = new byte[len];
+            in.read(i420_yuv);
+            in.close();
+
+            long start = System.currentTimeMillis();
+            boolean ok = ConvertI420ToNV12JNI(width, height, i420_yuv);
+            // i420_yuv
+            long end = System.currentTimeMillis();
+            int cost = (int)(end - start);
+            String s = String.format("%d milliseconds", cost);
+            mTextCost.setText(s);
+
+            // write to new file
+            String out_filename = path + "/" + String.format("cl_out_nv12_%dx%d.YUV", width, height);
+            FileOutputStream out = new FileOutputStream(out_filename);
+            out.write(i420_yuv);
+            out.close();
+
+            i420_yuv = null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void onButtonClickYuvI420ConvertNv12InMem(View view) {
         int width = 1080;  // 1080
         int height = 1920;  // 1920
         byte[] img = new byte[(int)(width * height * 1.5)];
@@ -62,18 +117,22 @@ public class MainActivity extends AppCompatActivity {
                 img[v_start + offset] = 2;
             }
         }
+
+        long start = System.currentTimeMillis();
         boolean ok = ConvertI420ToNV12JNI(width, height, img);
+        long end = System.currentTimeMillis();
+        int cost = (int)(end - start);
+        String s = String.format("%d milliseconds", cost);
+        mTextCost.setText(s);
+
         img = null;
-        // String sz = img.toString();
-        // Log.i("TEST", sz);
     }
 
     /**
      * A native method that is implemented by the 'ccsharehello' native library,
      * which is packaged with this application.
      */
-    public native String stringFromJNI();
-    public native int AddJNI(int a, int b);
+    public native String getDevicesNameFromJNI();
     public native void SetImageDataJNI(int width, int height, int[] imgData);
     public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data);
 }

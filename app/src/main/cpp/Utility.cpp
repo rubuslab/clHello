@@ -121,15 +121,12 @@ void TryAdd() {
     delete []output;
 }
 
-std::string Hello() {
-    printf("Hello world...");
-
+std::string GetDevicesName() {
     std::string sz = "devices : ";
 
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
     if (platforms.size() == 0) {
-        // std::cout << "Platform size 0\n";
         return "no platforms";
     }
     for (int i = 0; i < platforms.size(); ++i) {
@@ -147,5 +144,4 @@ std::string Hello() {
     TryAdd();
 
     return sz;
-    return "Hello";
 }

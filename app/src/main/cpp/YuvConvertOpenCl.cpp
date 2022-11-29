@@ -19,7 +19,7 @@ void YuvI420ToNV12OpenCc::Release() {
 }
 
 bool YuvI420ToNV12OpenCc::Init() {
-    std::string UpdateImageDataCode =  "kernel void kYuvI420ToNV12(global const unsigned char* in_i420_uv,"
+    /*std::string UpdateImageDataCode =  "kernel void kYuvI420ToNV12(global const unsigned char* in_i420_uv,"
                                        "                         global unsigned char* nv12_uv_buff,"
                                        "                         const int width, const int height,"
                                        "                         const int lines_per_group) {"
@@ -35,6 +35,23 @@ bool YuvI420ToNV12OpenCc::Init() {
                                        "    nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];"
                                        "  }"
                                        "}";
+    */
+            std::string UpdateImageDataCode =  "kernel void kYuvI420ToNV12(__global unsigned char* in_i420_uv,"
+                                               "                         __global unsigned char* nv12_uv_buff,"
+                                               "                         const int width, const int height,"
+                                               "                         const int lines_per_group) {"
+                                               "  int gid = get_global_id(0);"
+                                               "  int start_u = width * lines_per_group * gid;"
+                                               "  int start_v = (width * height) + start_u;"
+                                               ""
+                                               "  int nv12_uv_start = (width * 2) * lines_per_group * gid;"
+                                               "  int max = width * lines_per_group;"
+                                               "  for (int i = 0; i < max; ++i) {"
+                                               "    int index = nv12_uv_start + i * 2;"
+                                               "    nv12_uv_buff[index] = in_i420_uv[start_u + i];"
+                                               "    nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];"
+                                               "  }"
+                                               "}";
 
     cl_int err = CL_SUCCESS;
     // get platforms
