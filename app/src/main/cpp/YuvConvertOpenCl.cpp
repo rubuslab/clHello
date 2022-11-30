@@ -16,6 +16,8 @@ void YuvI420ToNV12OpenCc::Release() {
     delete m_program; m_program = nullptr;
     delete m_queue; m_queue = nullptr;
     delete m_kernel_yuvi420_to_nv12; m_kernel_yuvi420_to_nv12 = nullptr;
+    delete m_input_buff_uv; m_input_buff_uv = nullptr;
+    delete m_output_buff_uv; m_output_buff_uv = nullptr;
 }
 
 bool YuvI420ToNV12OpenCc::Init() {
@@ -35,23 +37,119 @@ bool YuvI420ToNV12OpenCc::Init() {
                                        "    nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];"
                                        "  }"
                                        "}";
+
+    std::string UpdateImageDataCode{R"CLC(
+      kernel void
+      kYuvI420ToNV12(__global unsigned char* in_i420_uv,
+        __global unsigned char* nv12_uv_buff,
+        const int u_width, const int u_height,
+        const int u_lines_per_group) {
+            int gid = get_global_id(0);
+            int start_u = u_width * u_lines_per_group * gid;
+            int start_v = (u_width * u_height) + start_u;
+
+            int nv12_uv_start = (u_width * 2) * u_lines_per_group * gid;
+            int max = u_width * u_lines_per_group;
+            for (int i = 0; i < max; ++i) {
+              int index = nv12_uv_start + i * 2;
+              nv12_uv_buff[index] = in_i420_uv[start_u + i];
+              nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];
+            }
+      }
+    )CLC"};
     */
-            std::string UpdateImageDataCode =  "kernel void kYuvI420ToNV12(__global unsigned char* in_i420_uv,"
-                                               "                         __global unsigned char* nv12_uv_buff,"
-                                               "                         const int width, const int height,"
-                                               "                         const int lines_per_group) {"
-                                               "  int gid = get_global_id(0);"
-                                               "  int start_u = width * lines_per_group * gid;"
-                                               "  int start_v = (width * height) + start_u;"
-                                               ""
-                                               "  int nv12_uv_start = (width * 2) * lines_per_group * gid;"
-                                               "  int max = width * lines_per_group;"
-                                               "  for (int i = 0; i < max; ++i) {"
-                                               "    int index = nv12_uv_start + i * 2;"
-                                               "    nv12_uv_buff[index] = in_i420_uv[start_u + i];"
-                                               "    nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];"
-                                               "  }"
-                                               "}";
+    /*
+     // i420
+     U0U1U2U3U4
+     ...
+     -----
+     V0V1V2V3V4
+     ...
+     // nv12
+     U0V0U1V1U2V2U3V3U4V4
+     */
+    std::string UpdateImageDataCode{R"CLC(
+      kernel void
+      kYuvI420ToNV12(__global unsigned char* in_i420_uv,
+        __global unsigned char* nv12_uv_buff,
+        const int u_width, const int u_height,
+        const int u_lines_per_group) {
+            int gid = get_global_id(0);
+            int local_line_idx = get_local_id(0);
+            int start_u = u_width * (u_lines_per_group * gid + local_line_idx);
+            int start_v = (u_width * u_height) + start_u;
+
+            // each kernel function deal one line u channel data
+            int nv12_uv_start = (u_width * 2) * (u_lines_per_group * gid + local_line_idx);
+
+            int loops = u_width / 16;
+            loops = 1;
+            for (int l = 0; l < loops; ++l) {
+              int offset = l * 16;
+              uchar16 u16 = vload16(0, in_i420_uv + start_u + offset);
+              uchar16 v16 = vload16(0, in_i420_uv + start_v + offset);
+
+              ushort16 uv16 = upsample(u16, v16);
+
+              uchar16 bytes16_uv0;
+              //bytes16_uv0.s01 = uv16.s0;
+              //bytes16_uv0.s01 = 0x0506;
+              bytes16_uv0.s0 = 0x05;
+              bytes16_uv0.s1 = 0x06;
+
+              bytes16_uv0.s23 = uv16.s1;
+              bytes16_uv0.s45 = uv16.s2;
+              bytes16_uv0.s67 = uv16.s3;
+              bytes16_uv0.s89 = uv16.s4;
+              bytes16_uv0.sab = uv16.s5;
+              bytes16_uv0.scd = uv16.s6;
+              bytes16_uv0.sef = uv16.s7;
+              // vstore16(bytes16_uv0, 0, nv12_uv_buff + nv12_uv_start + offset);
+              vstore16(bytes16_uv0, 0, nv12_uv_buff + nv12_uv_start + l * 16 * 2);
+
+              uchar16 bytes16_uv1;
+              bytes16_uv1.s01 = uv16.s8;
+              bytes16_uv1.s23 = uv16.s9;
+              bytes16_uv1.s45 = uv16.sa;
+              bytes16_uv1.s67 = uv16.sb;
+              bytes16_uv1.s89 = uv16.sc;
+              bytes16_uv1.sab = uv16.sd;
+              bytes16_uv1.scd = uv16.se;
+              bytes16_uv1.sef = uv16.sf;
+              // vstore16(bytes16_uv1, 0, nv12_uv_buff + nv12_uv_start + offset + 16);
+
+              //  ok- vstore16(bytes16_uv1, 0, nv12_uv_buff + nv12_uv_start + l * 16 * 2 + 16);
+
+              // vstore16(uv16, 0, nv12_uv_buff + nv12_uv_start + offset * 2);
+
+
+              //uchar8 v1 = convert_uchar8_sat(uv16.hi);
+              //uchar8 v2 =  convert_uchar8_sat(uv16.lo);
+              //u16_val.hi = v1;
+              //u16_val.lo = convert_uchar8_sat(uv16.lo);
+
+              //vstore8(u16_val.lo, 0, nv12_uv_buff + nv12_uv_start + offset * 2);
+
+              //uchar16 uv_bytes0;
+              //uv_bytes0.lo = convert_uchar8_sat(uv16.s0123);
+              //uv_bytes0.hi = convert_uchar8_sat(uv16.s4567);
+
+              // uv16.s0123;
+              //vstore16(u16_val, 0, nv12_uv_buff + nv12_uv_start + offset * 2);
+
+              //vstore16(convert_uchar16_sat_rtz(uv16.hi), 0, nv12_uv_buff + nv12_uv_start + offset * 2);
+              //vstore16(convert_uchar16_sat_rtz(uv16.lo), 0, nv12_uv_buff + nv12_uv_start + offset * 2 + 16);
+
+              // ok
+              // vstore8(convert_uchar8_sat(uv16.hi), 0, nv12_uv_buff + nv12_uv_start + offset * 2);
+            }
+            // for (int i = 0; i < u_width; ++i) {
+            //  int index = nv12_uv_start + i * 2;
+            //  nv12_uv_buff[index] = in_i420_uv[start_u + i];
+            //  nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];
+            // }
+      }
+    )CLC"};
 
     cl_int err = CL_SUCCESS;
     // get platforms
@@ -70,11 +168,11 @@ bool YuvI420ToNV12OpenCc::Init() {
     int num_compute_units = 0;
     err = target_device.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &num_compute_units);
     m_max_device_workgroups = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
-    int u_height = m_height / 2;  // u channels
-    m_workgroups = u_height;
-    for (int i = 1; i <= u_height; ++i) {
-        if (u_height % i == 0) {
-            int groups = u_height / i;
+    int u_channel_height = m_height / 2;  // u channels
+    m_workgroups = u_channel_height;
+    for (int i = 1; i <= u_channel_height; ++i) {
+        if (u_channel_height % i == 0) {
+            int groups = u_channel_height / i;
             if (groups <= m_max_device_workgroups) {
                 m_workgroups = groups;
                 break;
@@ -89,13 +187,30 @@ bool YuvI420ToNV12OpenCc::Init() {
     cl::Program::Sources sources;
     sources.push_back({UpdateImageDataCode.c_str(), UpdateImageDataCode.length()});
     m_program = new cl::Program(*m_context, sources);
-    if ((err = m_program->build({target_device})) != CL_SUCCESS) {
-        Log("Error building: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device));
+    if ((err = m_program->build({target_device}, "-cl-std=CL2.0")) != CL_SUCCESS) {
+        std::string build_error = "Building error: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device);
+        Log(build_error);
         return false;
     }
     // bind kernel function
     m_kernel_yuvi420_to_nv12 = new cl::Kernel(*m_program, "kYuvI420ToNV12", &err);
     if (err != CL_SUCCESS) { return false; }
+
+    // create input / output buffer
+    const int u_width = m_width / 2;
+    const int u_height = m_height / 2;
+    const int NUM = u_width * u_height;  // only u data or only v data
+    const int U_V_BLOCKS_SIZE = NUM * 2;
+    m_input_buff_uv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, (U_V_BLOCKS_SIZE) * sizeof(unsigned char),nullptr, &err);
+    m_output_buff_uv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, U_V_BLOCKS_SIZE * sizeof(unsigned char), NULL, &err);
+
+    // bind kernel function parameters
+    m_u_lines_per_group = u_height / m_workgroups;
+    err = m_kernel_yuvi420_to_nv12->setArg(0, *m_input_buff_uv);
+    err = m_kernel_yuvi420_to_nv12->setArg(1, *m_output_buff_uv);
+    err = m_kernel_yuvi420_to_nv12->setArg(2, u_width);
+    err = m_kernel_yuvi420_to_nv12->setArg(3, u_height);
+    err = m_kernel_yuvi420_to_nv12->setArg(4, m_u_lines_per_group);
 
     // create queue
     m_queue = new cl::CommandQueue(*m_context, target_device, 0, &err);
@@ -107,25 +222,13 @@ bool YuvI420ToNV12OpenCc::Init() {
 bool YuvI420ToNV12OpenCc::ConvertToNV12Impl(int width, int height, unsigned char* yuv_i420_img_data) {
     cl_int err = CL_SUCCESS;
     unsigned char* input_uv = yuv_i420_img_data + (width * height);
-    const int uv_width = width / 2;
-    const int uv_height = height / 2;
-    const int NUM = uv_width * uv_height;  // only u data or only v data
+    const int u_width = width / 2;
+    const int u_height = height / 2;
+    const int NUM = u_width * u_height;  // only u data or only v data
     const int U_V_BLOCKS_SIZE = NUM * 2;
 
-    // create input and output buffer
-    cl::Buffer inputBuffer = cl::Buffer(*m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, (U_V_BLOCKS_SIZE) * sizeof(unsigned char), (void*)input_uv, &err);
-    cl::Buffer outputBuffer = cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, U_V_BLOCKS_SIZE * sizeof(unsigned char), NULL, &err);
-
     // upload input data to target device
-    err = m_queue->enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, U_V_BLOCKS_SIZE * sizeof(unsigned char), input_uv);
-
-    // bind kernel function parameters
-    const int lines_per_group = uv_height / m_workgroups;
-    err = m_kernel_yuvi420_to_nv12->setArg(0, inputBuffer);
-    err = m_kernel_yuvi420_to_nv12->setArg(1, outputBuffer);
-    err = m_kernel_yuvi420_to_nv12->setArg(2, uv_width);
-    err = m_kernel_yuvi420_to_nv12->setArg(3, uv_height);
-    err = m_kernel_yuvi420_to_nv12->setArg(4, lines_per_group);
+    err = m_queue->enqueueWriteBuffer(*m_input_buff_uv, CL_TRUE, 0, U_V_BLOCKS_SIZE * sizeof(unsigned char), input_uv);
 
     // running kernel function
     // https://downloads.ti.com/mctools/esd/docs/opencl/execution/kernels-workgroups-workitems.html
@@ -138,13 +241,13 @@ bool YuvI420ToNV12OpenCc::ConvertToNV12Impl(int width, int height, unsigned char
     cl::Event event;
     // 让"逻辑work-items"和Workgroups数目相等，则每个group处理的时候只需要处理一个“逻辑work-item”
     err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(m_workgroups),
-                                     cl::NDRange(1), NULL, &event);
+                                     cl::NDRange(m_u_lines_per_group), NULL, &event);
     if (err != CL_SUCCESS) { return false; }
     event.wait();
 
     // read result, read the result put back to host memory
     // overwrite input_uv
-    err = m_queue->enqueueReadBuffer(outputBuffer, CL_TRUE, 0, U_V_BLOCKS_SIZE * sizeof(unsigned char), input_uv, 0, NULL);
+    err = m_queue->enqueueReadBuffer(*m_output_buff_uv, CL_TRUE, 0, U_V_BLOCKS_SIZE * sizeof(unsigned char), input_uv, 0, NULL);
 
     return err == CL_SUCCESS;
 }

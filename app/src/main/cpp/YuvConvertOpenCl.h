@@ -12,12 +12,15 @@ private:
     int m_height = 0;
     int m_max_device_workgroups = 0;
     int m_workgroups = 1;
+    int m_u_lines_per_group = 1;
 
     std::vector<cl::Device> m_devices;
     cl::Context* m_context = nullptr;
     cl::Program* m_program = nullptr;
     cl::CommandQueue* m_queue = nullptr;
     cl::Kernel* m_kernel_yuvi420_to_nv12 = nullptr;
+    cl::Buffer* m_input_buff_uv = nullptr;
+    cl::Buffer* m_output_buff_uv = nullptr;
 
     void Release();
     void Log(std::string message);
