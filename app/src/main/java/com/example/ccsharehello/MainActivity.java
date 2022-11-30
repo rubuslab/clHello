@@ -102,8 +102,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onButtonClickYuvI420ConvertNv12InMem(View view) {
-        int width = 64;  // 1080
-        int height = 4;  // 1920
+        // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
+        // 测试时候u高度大于1，可以为2,               height = 4
+        int width = 1080;
+        int height = 1920;
         byte[] img = new byte[(int)(width * height * 1.5)];
         // set i420 uv data
         int uv_width = width / 2;

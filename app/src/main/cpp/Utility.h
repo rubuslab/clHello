@@ -4,6 +4,13 @@
 #include <string>
 
 #include "CL/cl.hpp"
+#include <android/log.h>
+
+#define LOGV(...)__android_log_print(ANDROID_LOG_VERBOSE, " Tag", __VA_ARGS__)   // VERBOSE
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG , " Tag ", __VA_ARGS__)    // DEBUG
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO  , " Tag ",__VA_ARGS__)          // INFO
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN  , " Tag ", __VA_ARGS__)    //WARN
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR  , " Tag ",__VA_ARGS__)      // ERROR
 
 std::string GetDevicesName();
 

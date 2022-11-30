@@ -57,18 +57,13 @@ bool YuvI420ToNV12OpenCc::Init() {
             }
       }
     )CLC"};
-    */
-    /*
-     // i420
-     U0U1U2U3U4
-     ...
-     -----
-     V0V1V2V3V4
-     ...
-     // nv12
-     U0V0U1V1U2V2U3V3U4V4
-     */
-    std::string UpdateImageDataCode{R"CLC(
+
+     // before use mask
+     // --------------------------------------------------
+         std::string UpdateImageDataCode{R"CLC(
+      // for each target device, modify this printf function name.
+      // #pragma OPENCL EXTENSION cl_arm_printf : enable
+
       kernel void
       kYuvI420ToNV12(__global unsigned char* in_i420_uv,
         __global unsigned char* nv12_uv_buff,
@@ -88,6 +83,9 @@ bool YuvI420ToNV12OpenCc::Init() {
               int offset = l * 16;
               uchar16 u16 = vload16(0, in_i420_uv + start_u + offset);
               uchar16 v16 = vload16(0, in_i420_uv + start_v + offset);
+
+
+              // printf("Hello from opencl...\n");
 
               ushort16 uv16 = upsample(u16, v16);
 
@@ -149,6 +147,81 @@ bool YuvI420ToNV12OpenCc::Init() {
             //  nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];
             // }
       }
+     // --------------------------------------------------
+    */
+
+    /*
+     // i420
+     U0U1U2U3U4
+     ...
+     -----
+     V0V1V2V3V4
+     ...
+     // nv12
+     U0V0U1V1U2V2U3V3U4V4
+     */
+    std::string UpdateImageDataCode{R"CLC(
+      // for each target device, modify this printf function name.
+      // #pragma OPENCL EXTENSION cl_arm_printf : enable
+
+      // process 1 u/v line once this function called
+      kernel void
+      kYuvI420ToNV12(__global unsigned char* in_i420_uv,
+        __global unsigned char* nv12_uv_buff,
+        const int u_width,
+        const int u_height,
+        const int u_lines_per_group) {
+            int gid = get_global_id(0);
+            int local_line_idx = get_local_id(0);
+
+            // skip processed u lines
+            int processed_u_lines = u_lines_per_group * gid + local_line_idx;
+            int start_u = u_width * processed_u_lines;
+            int start_v = start_u + (u_width * u_height);
+
+            // each kernel function deal one line u channel data
+            int nv12_uv_start = (u_width * 2) * processed_u_lines;
+
+            // process 1 u line
+            // uv,uv,uv...
+            uchar16 mask_8uv = (uchar16)(0,8,  1,9,  2,10,  3,11,  4,12,  5,13,  6,14,  7,15);
+            uchar16 uv16;    // uv data, u0v0-u1v1-u2v2...
+            uchar8 u8;       // u channel data, u0-u1-u2-u3...
+            uchar8 v8;       // v channel data, v0-v1-v2-v3...
+            int step = 8;                                       // load 8 uchar u and v data, in each loop.
+            int u_offset = 0;                                   // offset from line head
+            int loops = u_width / step;                         // how many loops in this u line
+            for (int l = 0; l < loops; ++l) {
+              u8 = vload8(0, in_i420_uv + start_u + u_offset);  // 0, 1,  2,  3,  4,  5,  6,  7
+              v8 = vload8(0, in_i420_uv + start_v + u_offset);  // 8, 9, 10, 11, 12, 13, 14, 15
+              uv16 = shuffle2(u8, v8, mask_8uv);
+              vstore16(uv16, 0, nv12_uv_buff + nv12_uv_start + u_offset * 2);
+
+              u_offset += step;                                 // skip each processed 8 u bytes in line
+            }
+
+            // remain some u bytes not processed, because x = u_width % 8, x != 0.
+            if (u_width > u_offset) {
+              if (u_width - u_offset >= 4) {
+                // if remain u bytes >= 4, use shuffle process 4 bytes u and v data
+                uchar4 u4 = vload4(0, in_i420_uv + start_u + u_offset);  // 0, 1, 2, 3
+                uchar4 v4 = vload4(0, in_i420_uv + start_v + u_offset);  // 4, 5, 6, 7
+                uchar8 mask_4uv = (uchar8)(0,4,  1,5,  2,6,  3,7);
+                uchar8 uv8 = shuffle2(u4, v4, mask_4uv);
+                vstore8(uv8, 0, nv12_uv_buff + nv12_uv_start + u_offset * 2);
+                u_offset += 4;
+              }
+
+              int remain = u_width - u_offset;
+              // maybe remain 1 or 2 or 3 u bytes
+              for (int r = 0; r < remain; ++r) {
+                int uv_index = nv12_uv_start + u_offset * 2;
+                nv12_uv_buff[uv_index]     = in_i420_uv[start_u + u_offset];  // u
+                nv12_uv_buff[uv_index + 1] = in_i420_uv[start_v + u_offset];  // v
+                u_offset++;
+              }
+            }
+      }
     )CLC"};
 
     cl_int err = CL_SUCCESS;
@@ -180,6 +253,10 @@ bool YuvI420ToNV12OpenCc::Init() {
         }
     }
 
+    // get extensions info
+    auto info = target_device.getInfo<CL_DEVICE_EXTENSIONS>();
+    LOGI("Opencl extensions: %s\n", info.c_str());
+
     // create context
     m_context = new cl::Context({target_device});
 
@@ -189,7 +266,7 @@ bool YuvI420ToNV12OpenCc::Init() {
     m_program = new cl::Program(*m_context, sources);
     if ((err = m_program->build({target_device}, "-cl-std=CL2.0")) != CL_SUCCESS) {
         std::string build_error = "Building error: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device);
-        Log(build_error);
+        LOGI("%s\n", build_error.c_str());
         return false;
     }
     // bind kernel function
