@@ -101,17 +101,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void onButtonClickYuvI420ConvertNv12InMem(View view) {
+    private void TestYuvI420ConvertNv12(int width, int height) {
         // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
         // 测试时候u高度大于1，可以为2,               height = 4
-        int width = 1080;
-        int height = 1920;
         byte[] img = new byte[(int)(width * height * 1.5)];
         // set i420 uv data
         int uv_width = width / 2;
         int uv_height = height / 2;
         int u_start = width * height;
-        int v_start = u_start + (uv_width * uv_height);
+         int v_start = u_start + (uv_width * uv_height);
         for (int h = 0; h <uv_height; ++h) {
             for (int w = 0; w < uv_width; ++w) {
                 int offset = uv_width * h + w;
@@ -128,6 +126,16 @@ public class MainActivity extends AppCompatActivity {
         mTextCost.setText(s);
 
         img = null;
+    }
+
+    public void onButtonClickYuvI420ConvertNv12Small(View view) {
+        // u_width: 10, (8 + 2)
+        // u_height: 4, 2
+        TestYuvI420ConvertNv12(20, 4);
+    }
+
+    public void onButtonClickYuvI420ConvertNv12InMem(View view) {
+        TestYuvI420ConvertNv12(1080, 1920);
     }
 
     /**

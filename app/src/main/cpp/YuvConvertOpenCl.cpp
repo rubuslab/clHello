@@ -151,6 +151,10 @@ bool YuvI420ToNV12OpenCc::Init() {
     */
 
     /*
+    get_group_id -- Work-group ID
+    get_global_id --  Global work-item ID
+    get_local_id -- Local work-item ID
+
      // i420
      U0U1U2U3U4
      ...
@@ -161,65 +165,68 @@ bool YuvI420ToNV12OpenCc::Init() {
      U0V0U1V1U2V2U3V3U4V4
      */
     std::string UpdateImageDataCode{R"CLC(
-      // for each target device, modify this printf function name.
-      // #pragma OPENCL EXTENSION cl_arm_printf : enable
+      const uchar16 g_mask_8uv = (uchar16)(0,8,  1,9,  2,10,  3,11,  4,12,  5,13,  6,14,  7,15);
+      const uchar8  g_mask_4uv = (uchar8)(0,4,  1,5,  2,6,  3,7);
 
       // process 1 u/v line once this function called
       kernel void
-      kYuvI420ToNV12(__global unsigned char* in_i420_uv,
+      kYuvI420ToNV12(__global const unsigned char* in_i420_uv,
         __global unsigned char* nv12_uv_buff,
         const int u_width,
         const int u_height,
-        const int u_lines_per_group) {
+        const int max_u_size_each_work_item,
+        const int max_valid_group_id) {
             int gid = get_global_id(0);
-            int local_line_idx = get_local_id(0);
+            int u_total_bytes = u_width * u_height;
 
-            // skip processed u lines
-            int processed_u_lines = u_lines_per_group * gid + local_line_idx;
-            int start_u = u_width * processed_u_lines;
-            int start_v = start_u + (u_width * u_height);
+            // calculate u bytes must been processed in this work-item
+            int u_bytes = max_u_size_each_work_item;
+            if (gid == max_valid_group_id) u_bytes = u_total_bytes % max_u_size_each_work_item;
+            // if (gid > max_valid_group_id) u_bytes = 0;
 
-            // each kernel function deal one line u channel data
-            int nv12_uv_start = (u_width * 2) * processed_u_lines;
+            // start u, v position
+            int start_u = gid * max_u_size_each_work_item;
+            int start_v = u_total_bytes + start_u;
+            // uv,uv,uv,uv...
+            int nv12_uv_start = start_u * 2;
 
-            // process 1 u line
-            // uv,uv,uv...
-            uchar16 mask_8uv = (uchar16)(0,8,  1,9,  2,10,  3,11,  4,12,  5,13,  6,14,  7,15);
+            // kernel function each routine process u_bytes of u channel data
+            // each loop process 8 u bytes
+            // uchar16 mask_8uv = (uchar16)(0,8,  1,9,  2,10,  3,11,  4,12,  5,13,  6,14,  7,15);
             uchar16 uv16;    // uv data, u0v0-u1v1-u2v2...
             uchar8 u8;       // u channel data, u0-u1-u2-u3...
             uchar8 v8;       // v channel data, v0-v1-v2-v3...
-            int step = 8;                                       // load 8 uchar u and v data, in each loop.
-            int u_offset = 0;                                   // offset from line head
-            int loops = u_width / step;                         // how many loops in this u line
+            // loops is 0, when u_bytes < 8.
+            int loops = u_bytes / 8;
+            int u_offset = 0;
             for (int l = 0; l < loops; ++l) {
               u8 = vload8(0, in_i420_uv + start_u + u_offset);  // 0, 1,  2,  3,  4,  5,  6,  7
               v8 = vload8(0, in_i420_uv + start_v + u_offset);  // 8, 9, 10, 11, 12, 13, 14, 15
-              uv16 = shuffle2(u8, v8, mask_8uv);
+              uv16 = shuffle2(u8, v8, g_mask_8uv);
               vstore16(uv16, 0, nv12_uv_buff + nv12_uv_start + u_offset * 2);
-
-              u_offset += step;                                 // skip each processed 8 u bytes in line
+              u_offset += 8;
             }
 
-            // remain some u bytes not processed, because x = u_width % 8, x != 0.
-            if (u_width > u_offset) {
-              if (u_width - u_offset >= 4) {
-                // if remain u bytes >= 4, use shuffle process 4 bytes u and v data
+            int remain_bytes = u_bytes % 8;
+
+            // if last work-item's remain u bytes less than 8 and >= 4
+            // if remain u bytes >= 4
+            int f_loops = remain_bytes / 4;
+            for (int l = 0; l < f_loops; ++l) {
                 uchar4 u4 = vload4(0, in_i420_uv + start_u + u_offset);  // 0, 1, 2, 3
                 uchar4 v4 = vload4(0, in_i420_uv + start_v + u_offset);  // 4, 5, 6, 7
-                uchar8 mask_4uv = (uchar8)(0,4,  1,5,  2,6,  3,7);
-                uchar8 uv8 = shuffle2(u4, v4, mask_4uv);
+                uchar8 uv8 = shuffle2(u4, v4, g_mask_4uv);
                 vstore8(uv8, 0, nv12_uv_buff + nv12_uv_start + u_offset * 2);
                 u_offset += 4;
-              }
+             }
 
-              int remain = u_width - u_offset;
-              // maybe remain 1 or 2 or 3 u bytes
-              for (int r = 0; r < remain; ++r) {
-                int uv_index = nv12_uv_start + u_offset * 2;
-                nv12_uv_buff[uv_index]     = in_i420_uv[start_u + u_offset];  // u
-                nv12_uv_buff[uv_index + 1] = in_i420_uv[start_v + u_offset];  // v
-                u_offset++;
-              }
+            // remain bytes must less than 4
+            remain_bytes = u_bytes % 4;
+            for (int r = 0; r < remain_bytes; ++r) {
+              int uv_index = nv12_uv_start + u_offset * 2;
+              nv12_uv_buff[uv_index]     = in_i420_uv[start_u + u_offset];  // u
+              nv12_uv_buff[uv_index + 1] = in_i420_uv[start_v + u_offset];  // v
+              u_offset++;
             }
       }
     )CLC"};
@@ -241,17 +248,28 @@ bool YuvI420ToNV12OpenCc::Init() {
     int num_compute_units = 0;
     err = target_device.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &num_compute_units);
     m_max_device_workgroups = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
-    int u_channel_height = m_height / 2;  // u channels
-    m_workgroups = u_channel_height;
-    for (int i = 1; i <= u_channel_height; ++i) {
-        if (u_channel_height % i == 0) {
-            int groups = u_channel_height / i;
-            if (groups <= m_max_device_workgroups) {
-                m_workgroups = groups;
-                break;
-            }
+    // u channel bytes
+    uint32_t u_total_bytes = (m_width / 2) * (m_height / 2);
+
+    m_max_u_size_each_work_item = 8;
+    m_global_work_items = u_total_bytes / m_max_u_size_each_work_item + (u_total_bytes % m_max_u_size_each_work_item > 0 ? 1 : 0);
+    if (m_global_work_items <= kDefaultLocalGroupSize) {
+        // global work items is too small, decrease local group size
+        m_local_group_size = m_global_work_items;
+    } else {
+        m_local_group_size = kDefaultLocalGroupSize;
+        // set fake value
+        int workgroups = m_max_device_workgroups + 1;
+        for (int i = 1; i < u_total_bytes && workgroups > m_max_device_workgroups; ++i) {
+            // each work-item process some u bytes, each work item process 8 u bytes
+            m_max_u_size_each_work_item = 8 * i;
+            // each work-group process how many u bytes
+            uint32_t u_len_per_wg = m_local_group_size * m_max_u_size_each_work_item;
+            workgroups = u_total_bytes / u_len_per_wg + (u_total_bytes % u_len_per_wg > 0 ? 1 : 0);
         }
+        m_global_work_items = u_total_bytes / m_max_u_size_each_work_item + (u_total_bytes % m_max_u_size_each_work_item > 0 ? 1 : 0);
     }
+    m_max_valid_group_id = m_global_work_items -1;
 
     // get extensions info
     auto info = target_device.getInfo<CL_DEVICE_EXTENSIONS>();
@@ -282,12 +300,12 @@ bool YuvI420ToNV12OpenCc::Init() {
     m_output_buff_uv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, U_V_BLOCKS_SIZE * sizeof(unsigned char), NULL, &err);
 
     // bind kernel function parameters
-    m_u_lines_per_group = u_height / m_workgroups;
     err = m_kernel_yuvi420_to_nv12->setArg(0, *m_input_buff_uv);
     err = m_kernel_yuvi420_to_nv12->setArg(1, *m_output_buff_uv);
     err = m_kernel_yuvi420_to_nv12->setArg(2, u_width);
     err = m_kernel_yuvi420_to_nv12->setArg(3, u_height);
-    err = m_kernel_yuvi420_to_nv12->setArg(4, m_u_lines_per_group);
+    err = m_kernel_yuvi420_to_nv12->setArg(4, m_max_u_size_each_work_item);
+    err = m_kernel_yuvi420_to_nv12->setArg(5, m_max_valid_group_id);
 
     // create queue
     m_queue = new cl::CommandQueue(*m_context, target_device, 0, &err);
@@ -313,12 +331,13 @@ bool YuvI420ToNV12OpenCc::ConvertToNV12Impl(int width, int height, unsigned char
     // local-size: work-items in a group, 一个group是一次被调度到硬件一个内核(cpu, gpu, apu, dsp..)上的执行度量单元，
     //             一个group需要完成WIG(work-items in a group)个work-items的计算。当WIG > 1, 则硬件计算单元多次执行对应的
     //             kernel函数来满足完成一个group内计算WIG个work-items的要求。
-    //             显然如果只执行一次kernel函数就能完成一个group的计算要求是效率最高的。只要总work-items（实际计算中可以是“逻辑work-item”）
-    //             和groups相等，则可以做到一个group执行完成一个"逻辑work-item"的要求，而不用在一个group内多次执行kernel函数。
+    //             硬件上一次local-group(work-group)执行时一般是32或64个硬件线程同时执行。
+    //             xx显然如果只执行一次kernel函数就能完成一个group的计算要求是效率最高的。只要总work-items（实际计算中可以是“逻辑work-item”）
+    //             xx和groups相等，则可以做到一个group执行完成一个"逻辑work-item"的要求，而不用在一个group内多次执行kernel函数。
     cl::Event event;
     // 让"逻辑work-items"和Workgroups数目相等，则每个group处理的时候只需要处理一个“逻辑work-item”
-    err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(m_workgroups),
-                                     cl::NDRange(m_u_lines_per_group), NULL, &event);
+    err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(m_global_work_items),
+                                     cl::NDRange(m_local_group_size), NULL, &event);
     if (err != CL_SUCCESS) { return false; }
     event.wait();
 

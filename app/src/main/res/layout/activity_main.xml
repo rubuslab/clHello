@@ -22,7 +22,7 @@
         android:id="@+id/button_set_img_data"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="10dp"
         android:layout_marginTop="20dp"
         android:onClick="onSetImageDataClick"
         android:text="Set Image Data"
@@ -33,33 +33,44 @@
         android:id="@+id/button_i420_to_nv12"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
+        android:layout_marginStart="10dp"
         android:layout_marginTop="10dp"
         android:fontFamily="sans-serif"
         android:onClick="onButtonI420ToNV12Click"
-        android:text="I420 to NV12 - from file"
+        android:text="I420 to NV12 - from file 1280 x 720"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/button_set_img_data" />
 
     <TextView
         android:id="@+id/text_cost"
-        android:layout_width="172dp"
-        android:layout_height="42dp"
-        android:layout_marginStart="11dp"
-        android:layout_marginTop="19dp"
+        android:layout_width="324dp"
+        android:layout_height="35dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="17dp"
         android:text="TextView"
-        app:layout_constraintStart_toEndOf="@+id/button_i420_nv12_mem"
-        app:layout_constraintTop_toBottomOf="@+id/button_i420_to_nv12" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_i420_nv12_mem" />
 
     <Button
         android:id="@+id/button_i420_nv12_mem"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="23dp"
+        android:layout_marginStart="10dp"
         android:layout_marginTop="19dp"
         android:onClick="onButtonClickYuvI420ConvertNv12InMem"
-        android:text="I420 to nv12 - mem"
+        android:text="I420 to nv12 - mem 1920 x 1080"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/button_i420_to_nv12" />
+
+    <Button
+        android:id="@+id/button_to_nv12_small"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="20dp"
+        android:onClick="onButtonClickYuvI420ConvertNv12Small"
+        android:text="To NV12 small"
+        app:layout_constraintStart_toEndOf="@+id/button_set_img_data"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

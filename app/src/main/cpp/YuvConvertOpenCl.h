@@ -8,11 +8,15 @@
 
 class YuvI420ToNV12OpenCc {
 private:
+    const int kDefaultLocalGroupSize = 64;  // default 64
+
     int m_width = 0;
     int m_height = 0;
     int m_max_device_workgroups = 0;
-    int m_workgroups = 1;
-    int m_u_lines_per_group = 1;
+    int m_local_group_size = kDefaultLocalGroupSize;
+    int m_max_u_size_each_work_item = 0;
+    int m_max_valid_group_id = 0;
+    int m_global_work_items = 0;
 
     std::vector<cl::Device> m_devices;
     cl::Context* m_context = nullptr;
