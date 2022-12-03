@@ -4,6 +4,7 @@
 #include "Utility.h"
 #include "SetImageData.h"
 #include "YuvConvertOpenCl.h"
+#include "YuvI420ToNV12Rotate.h"
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_ccsharehello_MainActivity_getDevicesNameFromJNI(
@@ -36,7 +37,8 @@ Java_com_example_ccsharehello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, job
     // uint64_t start = GetMilliseconds();
     // get data, addref()
     jbyte* img_bytes = env->GetByteArrayElements(img_data, NULL);
-    bool success = YuvConvertHelper::getInstance().YuvI420ConvertToNV12(width, height, (unsigned char*)img_bytes);
+    // bool success = YuvConvertHelper::getInstance().YuvI420ConvertToNV12(width, height, (unsigned char*)img_bytes);
+    bool success = YuvConvertRotateHelper::getInstance().YuvI420ConvertToNV12Rotate(width, height, (unsigned char*)img_bytes);
     // release() to addref()
     env->ReleaseByteArrayElements(img_data, img_bytes, 0);
     // uint64_t  end = GetMilliseconds();
