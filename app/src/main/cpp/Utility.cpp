@@ -44,7 +44,9 @@ void Log(std::string err) {
 // CL_DEVICE_TYPE_ALL
 // CL_DEVICE_TYPE_CPU
 // CL_DEVICE_TYPE_GPU
-void GetDevices(const std::vector<cl::Platform>& platforms, cl_device_type type, std::vector<cl::Device>* devices) {
+void GetDevices(const std::vector<cl::Platform>& platforms,
+        cl_device_type type,
+        std::vector<cl::Device>* devices) {
     for(int i = 0; i < platforms.size(); ++i) {
         std::vector<cl::Device> temp_devices;
         platforms[i].getDevices(type, &temp_devices);

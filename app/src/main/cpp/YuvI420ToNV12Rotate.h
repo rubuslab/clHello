@@ -14,6 +14,10 @@
 #include "Singleton.h"
 #include "CL/cl.hpp"
 
+#ifndef R_CODE
+#define R_CODE(...) std::string(" "#__VA_ARGS__" ") // evil stringification macro, similar syntax to raw string R"(...)"
+#endif
+
 class YuvI420ToNV12Rotate {
 private:
     const int kDefaultLocalGroupSize = 64;  // default 64

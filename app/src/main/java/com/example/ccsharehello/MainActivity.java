@@ -105,14 +105,28 @@ public class MainActivity extends AppCompatActivity {
         // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
         // 测试时候u高度大于1，可以为2,               height = 4
         byte[] img = new byte[(int)(width * height * 1.5)];
+        // set y data
+        Log.i("Test", String.format("luminance, width: %d, height: %d\n", width, height));
+        Log.i("Test", "------------------------------------------------------------");
+        int count = 0;
+        for (int h = 0; h < height; ++h) {
+            String sz = "";
+            for (int w = 0; w < width; ++w) {
+                count = count % 128;
+                byte val = (byte)count++;
+                img[h * width + w] = val;
+                sz = sz + String.format("%3d ", val);
+            }
+            Log.i("Test", sz);
+        }
         // set i420 uv data
-        int uv_width = width / 2;
-        int uv_height = height / 2;
+        int u_width = width / 2;
+        int u_height = height / 2;
         int u_start = width * height;
-         int v_start = u_start + (uv_width * uv_height);
-        for (int h = 0; h <uv_height; ++h) {
-            for (int w = 0; w < uv_width; ++w) {
-                int offset = uv_width * h + w;
+        int v_start = u_start + u_width * u_height;
+        for (int h = 0; h <u_height; ++h) {
+            for (int w = 0; w < u_width; ++w) {
+                int offset = u_width * h + w;
                 img[u_start + offset] = 1;
                 img[v_start + offset] = 2;
             }
@@ -120,6 +134,19 @@ public class MainActivity extends AppCompatActivity {
 
         long start = System.currentTimeMillis();
         boolean ok = ConvertI420ToNV12JNI(width, height, img);
+        int new_width = height;
+        int new_height = width;
+        Log.i("Test", "\n");
+        Log.i("Test", String.format("Rotated image, new_width: %d, new_height: %d\n", new_width, new_height));
+        Log.i("Test", "------------------------------");
+        for (int h = 0; h < new_height; ++h) {
+            String sz = "";
+            for (int w = 0; w < new_width; ++w) {
+                int val = img[h * new_width + w];
+                sz = sz + String.format("%3d ", val);
+            }
+            Log.i("Test", sz);
+        }
         long end = System.currentTimeMillis();
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
@@ -131,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
     public void onButtonClickYuvI420ConvertNv12Small(View view) {
         // u_width: 10, (8 + 2)
         // u_height: 4, 2
-        TestYuvI420ConvertNv12(20, 4);
+        TestYuvI420ConvertNv12(200, 100);
     }
 
     public void onButtonClickYuvI420ConvertNv12InMem(View view) {
