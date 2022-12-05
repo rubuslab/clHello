@@ -24,10 +24,7 @@ private:
 
     int m_width = 0;
     int m_height = 0;
-    int m_max_device_workgroups = 0;
     int m_local_group_size = kDefaultLocalGroupSize;
-    int m_max_u_size_each_work_item = 0;
-    int m_max_valid_group_id = 0;
     int m_global_work_items = 0;
 
     std::vector<cl::Device> m_devices;
@@ -47,6 +44,8 @@ public:
 
     bool Init();
     bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_data);
+
+    bool ConvertToNV12RotateImpl_HostDebug(int width, int height, unsigned char* yuv_i420_img_data);
 };
 
 class YuvConvertRotateHelper:public Singleton<YuvConvertRotateHelper> {
