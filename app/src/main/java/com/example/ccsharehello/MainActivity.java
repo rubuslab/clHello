@@ -101,6 +101,90 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void TestYuvI420ConvertNv12_SmallDebug(int width, int height) {
+        // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
+        // 测试时候u高度大于1，可以为2,               height = 4
+        byte[] img = new byte[(int)(width * height * 1.5)];
+        // set y data
+        Log.i("Test", String.format("luminance, width: %d, height: %d", width, height));
+        Log.i("Test", "------------------------------------------------------------");
+        String sz = "";
+        int count = 0;
+        for (int h = 0; h < height; ++h) {
+            sz = "";
+            for (int w = 0; w < width; ++w) {
+                count = count % 128;
+                byte val = (byte)count++;
+                img[h * width + w] = val;
+                sz = sz + String.format("%3d ", val);
+            }
+            Log.i("Test", sz);
+        }
+        Log.i("Test", "uuuuu");
+        // set i420 uv data
+        int u_width = width / 2;
+        int u_height = height / 2;
+        int u_start = width * height;
+        int v_start = u_start + u_width * u_height;
+        for (int h = 0; h < u_height; ++h) {
+            sz = String.format("u-h%d ", h);
+            for (int w = 0; w < u_width; ++w) {
+                int offset = u_width * h + w;
+                img[u_start + offset] = 1;
+                img[v_start + offset] = 2;
+                sz = sz + String.format("%3d ", 1);
+            }
+            Log.i("Test", sz);
+        }
+        Log.i("Test", "vvvv");
+        // show v data
+        for (int h = 0; h < u_height; ++h) {
+            sz = String.format("v-h%d ", h);
+            for (int w = 0; w < u_width; ++w) {
+                int offset = u_width * h + w;
+                byte val = img[v_start + offset];
+                sz = sz + String.format("%3d ", val);
+            }
+            Log.i("Test", sz);
+        }
+        Log.i("Test", "---------");
+
+        // start convert
+
+        long start = System.currentTimeMillis();
+        boolean ok = ConvertI420ToNV12JNI(width, height, img);
+        long end = System.currentTimeMillis();
+        int cost = (int)(end - start);
+        String s = String.format("%d milliseconds", cost);
+        mTextCost.setText(s);
+
+        int new_width = height;
+        int new_height = width;
+        Log.i("Test", "");
+        Log.i("Test", String.format("Rotated image, new_width: %d, new_height: %d", new_width, new_height));
+        Log.i("Test", "------------------------------");
+        for (int h = 0; h < new_height; ++h) {
+            sz = "";
+            for (int w = 0; w < new_width; ++w) {
+                int val = img[h * new_width + w];
+                sz = sz + String.format("%3d ", val);
+            }
+            Log.i("Test", sz);
+        }
+        Log.i("Test", "uvuvuv");
+        int uv_height = u_width;
+        for (int h = 0; h < uv_height; ++h) {
+            sz = String.format("uv-h%d ", h);
+            for (int w = 0; w < new_width; ++w) {
+                int val = img[(new_height + h) * new_width + w];
+                sz = sz + String.format("%3d ", val);
+            }
+            Log.i("Test", sz);
+        }
+        Log.i("Test", "---------");
+        img = null;
+    }
+
     private void TestYuvI420ConvertNv12(int width, int height) {
         // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
         // 测试时候u高度大于1，可以为2,               height = 4
@@ -110,14 +194,11 @@ public class MainActivity extends AppCompatActivity {
         Log.i("Test", "------------------------------------------------------------");
         int count = 0;
         for (int h = 0; h < height; ++h) {
-            String sz = "";
             for (int w = 0; w < width; ++w) {
                 count = count % 128;
                 byte val = (byte)count++;
                 img[h * width + w] = val;
-                sz = sz + String.format("%3d ", val);
             }
-            Log.i("Test", sz);
         }
         // set i420 uv data
         int u_width = width / 2;
@@ -134,31 +215,23 @@ public class MainActivity extends AppCompatActivity {
 
         long start = System.currentTimeMillis();
         boolean ok = ConvertI420ToNV12JNI(width, height, img);
-        int new_width = height;
-        int new_height = width;
-        Log.i("Test", "\n");
-        Log.i("Test", String.format("Rotated image, new_width: %d, new_height: %d\n", new_width, new_height));
-        Log.i("Test", "------------------------------");
-        for (int h = 0; h < new_height; ++h) {
-            String sz = "";
-            for (int w = 0; w < new_width; ++w) {
-                int val = img[h * new_width + w];
-                sz = sz + String.format("%3d ", val);
-            }
-            Log.i("Test", sz);
-        }
         long end = System.currentTimeMillis();
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
         mTextCost.setText(s);
 
+        int new_width = height;
+        int new_height = width;
+        Log.i("Test", "\n");
+        Log.i("Test", String.format("Rotated image, new_width: %d, new_height: %d\n", new_width, new_height));
+        Log.i("Test", "------------------------------");
         img = null;
     }
 
     public void onButtonClickYuvI420ConvertNv12Small(View view) {
         // u_width: 10, (8 + 2)
         // u_height: 4, 2
-        TestYuvI420ConvertNv12(200, 100);
+        TestYuvI420ConvertNv12_SmallDebug(10, 6);
     }
 
     public void onButtonClickYuvI420ConvertNv12InMem(View view) {

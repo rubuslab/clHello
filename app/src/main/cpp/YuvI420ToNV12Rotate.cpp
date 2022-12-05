@@ -79,21 +79,46 @@ std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ###########
 
         // int r_x0 = y_height - ly - 1;  // rotated image x0
         // int r_y0 = lx;                 // rotated image y0
-        uchar2 lp0 = (uchar2)(ux * 2, uy * 2);  // luminance p0
-        uchar2 lp1 = (uchar2)(lp0.x + 1, lp0.y);
-        uchar2 lp2 = (uchar2)(lp0.x, lp0.y + 1);
-        uchar2 lp3 = (uchar2)(lp1.x, lp2.y);
+        ushort2 lp0 = (ushort2)(ux * 2, uy * 2);  // luminance p0
+        ushort2 lp1 = (ushort2)(lp0.x + 1, lp0.y);
+        ushort2 lp2 = (ushort2)(lp0.x, lp0.y + 1);
+        ushort2 lp3 = (ushort2)(lp1.x, lp2.y);
 
-        uchar2 rp0 = (uchar2)(y_height - lp0.y - 1, lp0.x);
-        uchar2 rp1 = (uchar2)(y_height - lp1.y - 1, lp1.x);
-        uchar2 rp2 = (uchar2)(y_height - lp2.y - 1, lp2.x);
-        uchar2 rp3 = (uchar2)(y_height - lp3.y - 1, lp3.x);
+        ushort2 rp0 = (ushort2)(y_height - lp0.y - 1, lp0.x);
+        ushort2 rp1 = (ushort2)(y_height - lp1.y - 1, lp1.x);
+        ushort2 rp2 = (ushort2)(y_height - lp2.y - 1, lp2.x);
+        ushort2 rp3 = (ushort2)(y_height - lp3.y - 1, lp3.x);
 
         // rotated width = un-rotate image y_height
         out_buff_yuv[rp0.y * y_height + rp0.x] = in_buff_yuv[lp0.y * y_width + lp0.x];
         out_buff_yuv[rp1.y * y_height + rp1.x] = in_buff_yuv[lp1.y * y_width + lp1.x];
         out_buff_yuv[rp2.y * y_height + rp2.x] = in_buff_yuv[lp2.y * y_width + lp2.x];
         out_buff_yuv[rp3.y * y_height + rp3.x] = in_buff_yuv[lp3.y * y_width + lp3.x];
+
+        // v0 = (ushort2)(ux, uy);
+        ushort delta_x = (u_height - uy - 1) * 2;
+        ushort2 r_up0 = (ushort2)(delta_x, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
+        ushort2 r_vp0 = (ushort2)(delta_x + 1, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
+
+        const unsigned char* in_uv = in_buff_yuv + y_block_size;
+        unsigned char* out_uv = out_buff_yuv + y_block_size;
+        unsigned short r_uv_width = u_height * 2;  // new rotated image uv width
+        out_uv[r_up0.y * r_uv_width + r_up0.x] = in_uv[uy * u_width + ux];
+        out_uv[r_vp0.y * r_uv_width + r_vp0.x] = in_uv[(u_height + uy) * u_width + ux];
+
+
+        // --------------------
+        // v0 = (ushort2)(ux, uy);
+        /*
+        -- unsigned short delta_x = (u_height - uy - 1) * 2;
+        -- Position r_up0(delta_x, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
+        -- Position r_vp0(delta_x + 1, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
+        const unsigned char* in_uv = in_buff_yuv + y_block_size;
+        unsigned char* out_uv = out_buff_yuv + y_block_size;
+        unsigned short uv_width = u_height * 2;
+        out_uv[r_up0.y * uv_width + r_up0.x] = in_uv[uy * u_width + ux];
+        out_uv[r_vp0.y * uv_width + r_vp0.x] = in_uv[(u_height + uy) * u_width + ux];
+        */
 
 
 // ------------------
@@ -529,6 +554,20 @@ void cc_kYuvI420ToNV12Rotate(const unsigned char* in_buff_yuv,  // 0, m_input_bu
     out_buff_yuv[rp1.y * y_height + rp1.x] = in_buff_yuv[lp1.y * y_width + lp1.x];
     out_buff_yuv[rp2.y * y_height + rp2.x] = in_buff_yuv[lp2.y * y_width + lp2.x];
     out_buff_yuv[rp3.y * y_height + rp3.x] = in_buff_yuv[lp3.y * y_width + lp3.x];
+
+    // v0 = (ushort2)(ux, uy);
+    unsigned short delta_x = (u_height - uy - 1) * 2;
+    Position r_up0(delta_x, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
+    Position r_vp0(delta_x + 1, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
+    const unsigned char* in_uv = in_buff_yuv + y_block_size;
+    unsigned char* out_uv = out_buff_yuv + y_block_size;
+    unsigned short uv_width = u_height * 2;
+    out_uv[r_up0.y * uv_width + r_up0.x] = in_uv[uy * u_width + ux];
+    out_uv[r_vp0.y * uv_width + r_vp0.x] = in_uv[(u_height + uy) * u_width + ux];
+    LOGI("u(%d, %d), r_u(%d, %d) - index(src: %d, dst: %d), r_v(%d, %d) - index(src: %d, dst: %d)\n",
+         ux, uy,
+         r_up0.x, r_up0.y, uy * u_width + ux, r_up0.y * uv_width + r_up0.x,
+         r_vp0.x, r_vp0.y, (u_height + uy) * u_width + ux, r_vp0.y * uv_width + r_vp0.x);
 }
 
 bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigned char* yuv_i420_img_data) {
@@ -579,23 +618,32 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
         localy = u_height;
 
     // ----------------test---------------------
-    /*unsigned char* out_yuv = new unsigned char[width * height * 1.5];
-    for (int u_h = 0; u_h < localy; ++u_h) {
-        for (int u_w = 0; u_w < localx; ++u_w) {
-            cc_kYuvI420ToNV12Rotate(input_yuv,  // 0, m_input_buff_yuv
-                out_yuv,                    // 1, m_output_buff_yuv
-                width,                                       // 2, y_width
-                height,                                      // 3, y_height
-                width * height,                                  // 4, y_width * y_height
-                u_width,                                       // 5, u_width
-                u_height,                                      // 6, u_height
-                u_width * u_height,                                  // 7, u_width * u_height
-                m_max_u_size_each_work_item,                     // 8, m_max_u_size_each_work_item, current 1
-                u_w,
-                u_h);
+    bool debug_rotate = false;
+    if (debug_rotate) {
+        unsigned char *out_yuv = new unsigned char[width * height * 1.5];
+        for (int u_h = localy - 1; u_h >=0; --u_h) {
+            for (int u_w = localx - 1; u_w >= 0; --u_w) {
+                cc_kYuvI420ToNV12Rotate(input_yuv,  // 0, m_input_buff_yuv
+                                        out_yuv,                    // 1, m_output_buff_yuv
+                                        width,                                       // 2, y_width
+                                        height,                                      // 3, y_height
+                                        width * height,                                  // 4, y_width * y_height
+                                        u_width,                                       // 5, u_width
+                                        u_height,                                      // 6, u_height
+                                        u_width * u_height,                                  // 7, u_width * u_height
+                                        m_max_u_size_each_work_item,                     // 8, m_max_u_size_each_work_item, current 1
+                                        u_w,
+                                        u_h);
+            }
         }
-    }*/
+        memcpy(input_yuv, out_yuv, width * height * 1.5);
+        delete[]out_yuv;
+        return true;
+    }
+    // ----------------test---------------------
 
+    // localx = 1; localy = 64; 1920*1080 <= 20ms
+    // default, 1920 * 1080, 14- 20ms
     err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(u_width, u_height),
                                        cl::NDRange(localx, localy), NULL, &event);
     if (err != CL_SUCCESS) { return false; }
@@ -604,9 +652,6 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
     // read result, read the result put back to host memory
     // overwrite input_uv
     err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, Y_UV_BLOCKS_SIZE * sizeof(unsigned char), input_yuv, 0, NULL);
-
-    // memcpy(input_yuv, out_yuv, width * height * 1.5);
-    // delete []out_yuv;
 
     return err == CL_SUCCESS;
 }
