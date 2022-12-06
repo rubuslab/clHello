@@ -1,5 +1,5 @@
 //
-// Created by Wookin on 12/3/2022.
+// Created by Rubus on 12/3/2022.
 //
 
 #include "YuvI420ToNV12Rotate.h"
@@ -21,7 +21,6 @@ void YuvI420ToNV12Rotate::Release() {
     delete m_output_buff_yuv; m_output_buff_yuv = nullptr;
 }
 
-
 std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ########################## begin of OpenCL C code ####################################################################
     // Only required by version 1.0.0 of the extension, version 2.0.0 does not
     // require the following pragma.
@@ -32,59 +31,98 @@ std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ###########
                    __global unsigned char* out_buff_yuv,             // 1, m_output_buff_yuv
                    const int y_width,                                // 2, y_width
                    const int y_height,                               // 3, y_height
-                   const int y_block_size,                           // 4, y_width * y_height
+                   const int y_bytes_size,                           // 4, y_width * y_height
                    const int u_width,                                // 5, u_width
                    const int u_height,                               // 6, u_height
-                   const int u_block_size,                           // 7, u_width * u_height
-                   const int out_uv_width                            // 8, rotated image's uv width. u_height * 2
+                   const int u_bytes_size,                           // 7, u_width * u_height
+                   const int out_uv_width                            // 8, rotated image's uv width equal to u_height * 2
                    ) {
-        int ux = get_global_id(0);
-        int uy = get_global_id(1);
+        int ux = get_global_id(0);  // u-block index at x - axle.
+        int uy = get_global_id(1);  // u-block index at y - axle.
+
+        int u_block_width = 4;
+        int u_block_height = 4;
+        int max_u_x_index = u_width / u_block_width - 1;
+        int max_u_y_index = u_height / u_block_height - 1;
 
         // printf("ux = %d, uy = %d\n", ux, uy);
 
-        // origin image, luminance pixels p0, p1, p2, p3
-        ushort2 lp0 = (ushort2)(ux << 1, uy << 1);  // ux * 2, uy * 2
-        ushort2 lp1 = (ushort2)(lp0.x + 1, lp0.y);
-        ushort2 lp2 = (ushort2)(lp0.x, lp0.y + 1);
-        ushort2 lp3 = (ushort2)(lp1.x, lp2.y);
+        // origin - y image block
+        int lu_start = (uy * u_block_height * 2) * y_width + (ux * u_block_width * 2);
+        int8 indexs = (int8)(0, 1, 2, 3, 4, 5, 6, 7);
+        int8 offsets = indexs * y_width;
+        offsets += lu_start;
+        // load y block data, 8 x 8 (width * height)
+        uchar8 yl0 = vload8(0, in_buff_yuv + offsets.s0);
+        uchar8 yl1 = vload8(0, in_buff_yuv + offsets.s1);
+        uchar8 yl2 = vload8(0, in_buff_yuv + offsets.s2);
+        uchar8 yl3 = vload8(0, in_buff_yuv + offsets.s3);
+        uchar8 yl4 = vload8(0, in_buff_yuv + offsets.s4);
+        uchar8 yl5 = vload8(0, in_buff_yuv + offsets.s5);
+        uchar8 yl6 = vload8(0, in_buff_yuv + offsets.s6);
+        uchar8 yl7 = vload8(0, in_buff_yuv + offsets.s7);
 
-        // rotated image, luminance
-        int y_height_sub1 = y_height - 1;
-        ushort2 rp0 = (ushort2)(y_height_sub1 - lp0.y, lp0.x);
-        ushort2 rp1 = (ushort2)(y_height_sub1 - lp1.y, lp1.x);
-        ushort2 rp2 = (ushort2)(y_height_sub1 - lp2.y, lp2.x);
-        ushort2 rp3 = (ushort2)(y_height_sub1 - lp3.y, lp3.x);
+        // rotated - y image block
+        uchar8 rl0 = (uchar8)(yl7.s0, yl6.s0, yl5.s0, yl4.s0, yl3.s0, yl2.s0, yl1.s0, yl0.s0);
+        uchar8 rl1 = (uchar8)(yl7.s1, yl6.s1, yl5.s1, yl4.s1, yl3.s1, yl2.s1, yl1.s1, yl0.s1);
+        uchar8 rl2 = (uchar8)(yl7.s2, yl6.s2, yl5.s2, yl4.s2, yl3.s2, yl2.s2, yl1.s2, yl0.s2);
+        uchar8 rl3 = (uchar8)(yl7.s3, yl6.s3, yl5.s3, yl4.s3, yl3.s3, yl2.s3, yl1.s3, yl0.s3);
+        uchar8 rl4 = (uchar8)(yl7.s4, yl6.s4, yl5.s4, yl4.s4, yl3.s4, yl2.s4, yl1.s4, yl0.s4);
+        uchar8 rl5 = (uchar8)(yl7.s5, yl6.s5, yl5.s5, yl4.s5, yl3.s5, yl2.s5, yl1.s5, yl0.s5);
+        uchar8 rl6 = (uchar8)(yl7.s6, yl6.s6, yl5.s6, yl4.s6, yl3.s6, yl2.s6, yl1.s6, yl0.s6);
+        uchar8 rl7 = (uchar8)(yl7.s7, yl6.s7, yl5.s7, yl4.s7, yl3.s7, yl2.s7, yl1.s7, yl0.s7);
+        // rotated u-block index
+        // rotated u block height equal to u-block-width, rotated y width equal to y-height.
+        int2 ru_pos = (int2)(max_u_y_index - uy, ux);
+        int rlu_start = (ru_pos.y * u_block_width * 2) * y_height + (ru_pos.x * u_block_height * 2);
+        int8 r_offsets = indexs * y_height;
+        r_offsets += rlu_start;
+        // write rotated y image data
+        vstore8(rl0, 0, out_buff_yuv + r_offsets.s0);
+        vstore8(rl1, 0, out_buff_yuv + r_offsets.s1);
+        vstore8(rl2, 0, out_buff_yuv + r_offsets.s2);
+        vstore8(rl3, 0, out_buff_yuv + r_offsets.s3);
+        vstore8(rl4, 0, out_buff_yuv + r_offsets.s4);
+        vstore8(rl5, 0, out_buff_yuv + r_offsets.s5);
+        vstore8(rl6, 0, out_buff_yuv + r_offsets.s6);
+        vstore8(rl7, 0, out_buff_yuv + r_offsets.s7);
 
-        // update rotated image's 4 luminance pixels
-        // out_buff_yuv[rp0.y * y_height + rp0.x] = in_buff_yuv[lp0.y * y_width + lp0.x];
-        // out_buff_yuv[rp1.y * y_height + rp1.x] = in_buff_yuv[lp1.y * y_width + lp1.x];
-        // out_buff_yuv[rp2.y * y_height + rp2.x] = in_buff_yuv[lp2.y * y_width + lp2.x];
-        // out_buff_yuv[rp3.y * y_height + rp3.x] = in_buff_yuv[lp3.y * y_width + lp3.x];
-        //
-        // rotated width = un-rotate image y_height
-        uchar2 lu2_in = vload2(0, in_buff_yuv + (lp0.y * y_width + lp0.x));  // 0, 1, read 2 pixels once
-        out_buff_yuv[rp0.y * y_height + rp0.x] = lu2_in.x;
-        out_buff_yuv[rp1.y * y_height + rp1.x] = lu2_in.y;
+        // u - v data
+        // load u data
+        const unsigned char* in_u_buff = in_buff_yuv + y_bytes_size;
+        int u_start = (uy * u_block_height) * u_width + (ux * u_block_width);
+        int4 u_indexs = (int4)(0, 1, 2, 3);
+        int4 u_offsets = u_indexs * u_width;
+        u_offsets += u_start;
+        // load u block 4 lines
+        uchar4 ul0 = vload4(0, in_u_buff + u_offsets.s0);
+        uchar4 ul1 = vload4(0, in_u_buff + u_offsets.s1);
+        uchar4 ul2 = vload4(0, in_u_buff + u_offsets.s2);
+        uchar4 ul3 = vload4(0, in_u_buff + u_offsets.s3);
 
-        lu2_in = vload2(0, in_buff_yuv + (lp2.y * y_width + lp2.x));  // 2, 3, read 2 pixels once
-        out_buff_yuv[rp2.y * y_height + rp2.x] = lu2_in.x;
-        out_buff_yuv[rp3.y * y_height + rp3.x] = lu2_in.y;
+        // load v block 4 lines
+        const unsigned char* in_v_buff = in_u_buff + u_bytes_size;
+        int4 v_offsets = u_offsets;
+        uchar4 vl0 = vload4(0, in_v_buff + v_offsets.s0);
+        uchar4 vl1 = vload4(0, in_v_buff + v_offsets.s1);
+        uchar4 vl2 = vload4(0, in_v_buff + v_offsets.s2);
+        uchar4 vl3 = vload4(0, in_v_buff + v_offsets.s3);
 
-        // rotated image u0, v0 position
-        ushort delta_x = (u_height - uy - 1) << 1;   // * 2
-        ushort2 r_up0 = (ushort2)(delta_x, ux);      // x' = (u_h - y0 - 1) * 2, y' = x0
-        ushort2 r_vp0 = (ushort2)(delta_x + 1, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
-        // update rotated image u0, v0 values
-        const unsigned char* in_uv = in_buff_yuv + y_block_size;
-        unsigned char* out_uv = out_buff_yuv + y_block_size;
-        // out_uv[r_up0.y * out_uv_width + r_up0.x] = in_uv[uy * u_width + ux];
-        // out_uv[r_vp0.y * out_uv_width + r_vp0.x] = in_uv[(u_height + uy) * u_width + ux];
-        //
-        // optimize
-        int skip_u_lines_pixels = uy * u_width + ux;
-        out_uv[r_up0.y * out_uv_width + r_up0.x] = in_uv[skip_u_lines_pixels];
-        out_uv[r_vp0.y * out_uv_width + r_vp0.x] = in_uv[u_block_size + skip_u_lines_pixels];
+        // uv lines
+        uchar8 uvl0 = (uchar8)(ul3.s0, vl3.s0, ul2.s0, vl2.s0, ul1.s0, vl1.s0, ul0.s0, vl0.s0);
+        uchar8 uvl1 = (uchar8)(ul3.s1, vl3.s1, ul2.s1, vl2.s1, ul1.s1, vl1.s1, ul0.s1, vl0.s1);
+        uchar8 uvl2 = (uchar8)(ul3.s2, vl3.s2, ul2.s2, vl2.s2, ul1.s2, vl1.s2, ul0.s2, vl0.s2);
+        uchar8 uvl3 = (uchar8)(ul3.s3, vl3.s3, ul2.s3, vl2.s3, ul1.s3, vl1.s3, ul0.s3, vl0.s3);
+
+        // rotated image r-width equal to y_height
+        int uv_start = y_bytes_size + (ru_pos.y * u_block_height) * y_height + ru_pos.x * u_block_width * 2;  // r-width = y_height
+        int4 uv_offsets = u_indexs * y_height;                                                                // r-width = y_height
+        uv_offsets += uv_start;
+        // write rotated uv data
+        vstore8(uvl0, 0, out_buff_yuv + uv_offsets.s0);
+        vstore8(uvl1, 0, out_buff_yuv + uv_offsets.s1);
+        vstore8(uvl2, 0, out_buff_yuv + uv_offsets.s2);
+        vstore8(uvl3, 0, out_buff_yuv + uv_offsets.s3);
     }
 );} // ############################################################### end of OpenCL C code #####################################################################
 
@@ -117,35 +155,6 @@ bool YuvI420ToNV12Rotate::Init() {
     // for any given kernel-instance running on the device.
     int max_local_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
     LOGI("max work-items in local group: %d", max_local_group_work_items);
-
-    // u channel bytes
-    uint32_t u_total_bytes = (m_width / 2) * (m_height / 2);
-
-    int PROCESS_BYTES_IN_WI_STEP = 1;
-    int max_u_size_each_work_item = 1;
-    m_global_work_items = u_total_bytes / max_u_size_each_work_item + (u_total_bytes % max_u_size_each_work_item > 0 ? 1 : 0);
-    if (m_global_work_items <= kDefaultLocalGroupSize) {
-        // global work items is too small, decrease local group size
-        m_local_group_size = m_global_work_items;
-    } else {
-        for (int i = kDefaultLocalGroupSize; i >= 1; --i) {
-            if (m_global_work_items % i == 0) {
-                m_local_group_size = i;
-                break;
-            }
-        }
-        /*m_local_group_size = kDefaultLocalGroupSize;
-        int workgroups = m_max_device_workgroups + 1;
-        for (int i = 1; i < u_total_bytes && workgroups > m_max_device_workgroups; ++i) {
-            // each work-item process some u bytes, each work item process 8 u bytes
-            m_max_u_size_each_work_item = PROCESS_BYTES_IN_WI_STEP * i;
-            // each work-group process how many u bytes
-            uint32_t u_len_per_wg = m_local_group_size * m_max_u_size_each_work_item;
-            workgroups = u_total_bytes / u_len_per_wg + (u_total_bytes % u_len_per_wg > 0 ? 1 : 0);
-        }
-        m_global_work_items = u_total_bytes / m_max_u_size_each_work_item + (u_total_bytes % m_max_u_size_each_work_item > 0 ? 1 : 0);
-        */
-    }
 
     // get extensions info
     auto info = target_device.getInfo<CL_DEVICE_EXTENSIONS>();
@@ -181,9 +190,12 @@ bool YuvI420ToNV12Rotate::Init() {
     // create input / output buffer
     const int u_width = m_width / 2;
     const int u_height = m_height / 2;
-    const int Y_UV_BLOCKS_SIZE = m_width * m_height * 1.5;
-    m_input_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, (Y_UV_BLOCKS_SIZE) * sizeof(unsigned char),nullptr, &err);
-    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, Y_UV_BLOCKS_SIZE * sizeof(unsigned char), NULL, &err);
+    const int Y_UV_BUFF_SIZE = m_width * m_height * 1.5;
+    m_input_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, (Y_UV_BUFF_SIZE) * sizeof(unsigned char),nullptr, &err);
+    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, Y_UV_BUFF_SIZE * sizeof(unsigned char), NULL, &err);
+
+    // int u_x_blocks = u_width / kEachUBlockWidthPixels;
+    // int u_y_blocks = u_height / kEachUBlockHeightPixels;
 
     // bind kernel function parameters
     const int out_uv_width = u_height * 2;
@@ -204,110 +216,20 @@ bool YuvI420ToNV12Rotate::Init() {
     return true;
 }
 
-struct Position{
-    int x;
-    int y;
-    Position(int x0, int y0): x(x0), y(y0){}
-};
-
-void cc_kYuvI420ToNV12Rotate_HostDebug(const unsigned char* in_buff_yuv,  // 0, m_input_buff_yuv
-    unsigned char* out_buff_yuv,                    // 1, m_output_buff_yuv
-    const int y_width,                                       // 2, y_width
-    const int y_height,                                      // 3, y_height
-    const int y_block_size,                                  // 4, y_width * y_height
-    const int u_width,                                       // 5, u_width
-    const int u_height,                                      // 6, u_height
-    const int u_block_size,                                  // 7, u_width * u_height
-    int uw_pos,
-    int uh_pos) {                          // 9, max_valid_group_id
-    int ux = uw_pos; // get_global_id(0);
-    int uy = uh_pos; // get_global_id(1);
-
-    // int r_x0 = y_height - ly - 1;  // rotated image x0
-    // int r_y0 = lx;                 // rotated image y0
-    Position lp0(ux * 2, uy * 2);  // luminance p0
-    Position lp1(lp0.x + 1, lp0.y);
-    Position lp2(lp0.x, lp0.y + 1);
-    Position lp3(lp0.x + 1, lp0.y + 1);
-
-    Position rp0(y_height - lp0.y - 1, lp0.x);
-    Position rp1(y_height - lp1.y - 1, lp1.x);
-    Position rp2(y_height - lp2.y - 1, lp2.x);
-    Position rp3(y_height - lp3.y - 1, lp3.x);
-
-    // rotated width = y_height
-    out_buff_yuv[rp0.y * y_height + rp0.x] = in_buff_yuv[lp0.y * y_width + lp0.x];
-    out_buff_yuv[rp1.y * y_height + rp1.x] = in_buff_yuv[lp1.y * y_width + lp1.x];
-    out_buff_yuv[rp2.y * y_height + rp2.x] = in_buff_yuv[lp2.y * y_width + lp2.x];
-    out_buff_yuv[rp3.y * y_height + rp3.x] = in_buff_yuv[lp3.y * y_width + lp3.x];
-
-    // v0 = (ushort2)(ux, uy);
-    unsigned short delta_x = (u_height - uy - 1) * 2;
-    Position r_up0(delta_x, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
-    Position r_vp0(delta_x + 1, ux);  // x' = (u_h - y0 - 1) * 2, y' = x0
-    const unsigned char* in_uv = in_buff_yuv + y_block_size;
-    unsigned char* out_uv = out_buff_yuv + y_block_size;
-    unsigned short uv_width = u_height * 2;
-    out_uv[r_up0.y * uv_width + r_up0.x] = in_uv[uy * u_width + ux];
-    out_uv[r_vp0.y * uv_width + r_vp0.x] = in_uv[(u_height + uy) * u_width + ux];
-    LOGI("u(%d, %d), r_u(%d, %d) - index(src: %d, dst: %d), r_v(%d, %d) - index(src: %d, dst: %d)\n",
-         ux, uy,
-         r_up0.x, r_up0.y, uy * u_width + ux, r_up0.y * uv_width + r_up0.x,
-         r_vp0.x, r_vp0.y, (u_height + uy) * u_width + ux, r_vp0.y * uv_width + r_vp0.x);
-}
-
-bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl_HostDebug(int width, int height, unsigned char* yuv_i420_img_data) {
-    cl_int err = CL_SUCCESS;
-    unsigned char* input_yuv = yuv_i420_img_data;
-    const int u_width = width / 2;
-    const int u_height = height / 2;
-
-    int localx = 8;
-    if(u_width / 8 > 4)
-      localx = 16;
-    else if(u_width < 8)
-      localx = u_width;
-
-    int localy = 8;
-    if(u_height / 8 > 4)
-      localy = 16;
-    else if (u_height < 8)
-      localy = u_height;
-
-    // ----------------test---------------------
-    unsigned char *out_yuv = new unsigned char[width * height * 1.5];
-    for (int u_h = localy - 1; u_h >=0; --u_h) {
-      for (int u_w = localx - 1; u_w >= 0; --u_w) {
-        cc_kYuvI420ToNV12Rotate_HostDebug(input_yuv,  // 0, m_input_buff_yuv
-            out_yuv,                    // 1, m_output_buff_yuv
-            width,                                       // 2, y_width
-            height,                                      // 3, y_height
-            width * height,                                  // 4, y_width * y_height
-            u_width,                                       // 5, u_width
-            u_height,                                      // 6, u_height
-            u_width * u_height,                                  // 7, u_width * u_height
-            u_w,
-            u_h);
-      }
-    }
-    memcpy(input_yuv, out_yuv, width * height * 1.5);
-    delete[]out_yuv;
-    return true;
-}
-
 bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigned char* yuv_i420_img_data) {
-    // debug only
+    // debug only, remove comments for debug
     // return ConvertToNV12RotateImpl_HostDebug(width, height, yuv_i420_img_data);
 
     cl_int err = CL_SUCCESS;
     unsigned char* input_yuv = yuv_i420_img_data;
     const int u_width = width / 2;
     const int u_height = height / 2;
-    const int Y_UV_BLOCKS_SIZE = width * height * 1.5; // y_block + u_block + v_block
+    const int Y_UV_BUFF_SIZE = width * height * 1.5; // y_block + u_block + v_block
 
     // upload input data to target device
     cl::Event upload_mem_ev;
-    err = m_queue->enqueueWriteBuffer(*m_input_buff_yuv, CL_FALSE, 0, Y_UV_BLOCKS_SIZE * sizeof(unsigned char), input_yuv, nullptr, &upload_mem_ev);
+    err = m_queue->enqueueWriteBuffer(*m_input_buff_yuv, CL_FALSE, 0, Y_UV_BUFF_SIZE * sizeof(unsigned char),
+                       input_yuv, nullptr, &upload_mem_ev);
 
     // running kernel function
     // https://downloads.ti.com/mctools/esd/docs/opencl/execution/kernels-workgroups-workitems.html
@@ -333,32 +255,36 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
     for (int n = 64; n >= 1; --n) {
         if (u_height % n == 0) { y_lg_size = n; break;}
     }*/
+    int u_x_blocks = u_width / kEachUBlockWidthPixels;
+    int u_y_blocks = u_height / kEachUBlockHeightPixels;
     int localx = 8;
-    if(u_width / 8 > 4)
+    if(u_x_blocks / 8 > 4)
         localx = 16;
-    else if(u_width < 8)
-        localx = u_width;
+    else if(u_x_blocks < 8)
+        localx = u_x_blocks;
 
     int localy = 8;
-    if(u_height / 8 > 4)
+    if(u_y_blocks / 8 > 4)
         localy = 16;
-    else if (u_height < 8)
-        localy = u_height;
+    else if (u_y_blocks < 8)
+        localy = u_y_blocks;
 
     // default, 1920 * 1080, 14- 20ms
     // localx = 1; localy = 64; 1920*1080 <= 20ms
     cl::Event enqueue_ndrange_ev;
     std::vector<cl::Event> wait_events;
     wait_events.push_back(upload_mem_ev);
-    err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(u_width, u_height), cl::NDRange(localx, localy), &wait_events, &enqueue_ndrange_ev);
+    err = m_queue->enqueueNDRangeKernel(*m_kernel_yuvi420_to_nv12, cl::NullRange, cl::NDRange(u_x_blocks, u_y_blocks),
+                     cl::NDRange(localx, localy), &wait_events, &enqueue_ndrange_ev);
     if (err != CL_SUCCESS) { return false; }
-    // event.wait();
+    enqueue_ndrange_ev.wait();
 
     // read result, read the result put back to host memory
     // overwrite input_yuv
-    std::vector<cl::Event> wait_finish_events;
-    wait_finish_events.push_back(enqueue_ndrange_ev);
-    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, Y_UV_BLOCKS_SIZE * sizeof(unsigned char), input_yuv, &wait_finish_events, NULL);
+    // std::vector<cl::Event> wait_finish_events;
+    // wait_finish_events.push_back(enqueue_ndrange_ev);
+    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, Y_UV_BUFF_SIZE * sizeof(unsigned char), input_yuv,
+                                     nullptr, NULL);
 
     return err == CL_SUCCESS;
 }

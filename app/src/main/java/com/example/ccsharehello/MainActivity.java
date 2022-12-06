@@ -126,13 +126,15 @@ public class MainActivity extends AppCompatActivity {
         int u_height = height / 2;
         int u_start = width * height;
         int v_start = u_start + u_width * u_height;
+        byte u_count = 10;
+        byte v_count = 40;
         for (int h = 0; h < u_height; ++h) {
             sz = String.format("u-h%d ", h);
             for (int w = 0; w < u_width; ++w) {
                 int offset = u_width * h + w;
-                img[u_start + offset] = 1;
-                img[v_start + offset] = 2;
-                sz = sz + String.format("%3d ", 1);
+                img[u_start + offset] = u_count;
+                img[v_start + offset] = v_count++;
+                sz = sz + String.format("%3d ", u_count++);
             }
             Log.i("Test", sz);
         }
@@ -157,6 +159,8 @@ public class MainActivity extends AppCompatActivity {
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
         mTextCost.setText(s);
+
+        Log.i("Test", String.format("Convert result: %s", ok ? "Success" : "Failed"));
 
         int new_width = height;
         int new_height = width;
@@ -229,9 +233,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onButtonClickYuvI420ConvertNv12Small(View view) {
-        // u_width: 10, (8 + 2)
-        // u_height: 4, 2
-        TestYuvI420ConvertNv12_SmallDebug(10, 6);
+        // int img_width = 16;
+        int img_width = 16;
+        int img_height = 8;
+        TestYuvI420ConvertNv12_SmallDebug(img_width, img_height);
     }
 
     public void onButtonClickYuvI420ConvertNv12InMem(View view) {

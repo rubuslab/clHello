@@ -20,6 +20,9 @@
 
 class YuvI420ToNV12Rotate {
 private:
+    const int kEachUBlockWidthPixels = 4;   // u_blocks_x: image width / 2 / kEachUBlockWidthPixels
+    const int kEachUBlockHeightPixels = 4;  // u_blocks_y: image height / 2/ kEachUBlockHeightPixels
+
     const int kDefaultLocalGroupSize = 64;  // default 64
 
     int m_width = 0;
@@ -36,7 +39,6 @@ private:
     cl::Buffer* m_output_buff_yuv = nullptr;
 
     void Release();
-    void Log(std::string message);
 public:
     YuvI420ToNV12Rotate(int width, int height): m_width(width), m_height(height) {}
     ~YuvI420ToNV12Rotate() { Release(); }
@@ -44,8 +46,6 @@ public:
 
     bool Init();
     bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_data);
-
-    bool ConvertToNV12RotateImpl_HostDebug(int width, int height, unsigned char* yuv_i420_img_data);
 };
 
 class YuvConvertRotateHelper:public Singleton<YuvConvertRotateHelper> {
@@ -63,6 +63,9 @@ private:
 
 public:
     bool YuvI420ConvertToNV12Rotate(int width, int height, unsigned char* img_yuv_data) {
+        // width and height must equal to 8x
+        if (width % 8 != 0 || height % 8 != 0) return false;
+
         InitI420ToNV32(width, height);
         bool ok = false;
         if (m_yuvi420_to_nv12_obj) { ok = m_yuvi420_to_nv12_obj->ConvertToNV12RotateImpl(width, height, img_yuv_data); }
