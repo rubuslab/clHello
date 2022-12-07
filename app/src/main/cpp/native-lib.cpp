@@ -34,6 +34,10 @@ extern "C"
 JNIEXPORT jboolean JNICALL
 Java_com_example_ccsharehello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject thiz, jint width, jint height,
                                                                 jbyteArray img_data) {
+    // width and height must equal to 8x
+    // check this in java side
+    if (width % 8 != 0 || height % 8 != 0) return false;
+
     // uint64_t start = GetMilliseconds();
     // get data, addref()
     jbyte* img_bytes = env->GetByteArrayElements(img_data, NULL);

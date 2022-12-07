@@ -24,11 +24,11 @@ private:
     const int kEachUBlockHeightPixels = 4;  // u_blocks_y: image height / 2/ kEachUBlockHeightPixels
 
     const int kDefaultLocalGroupSize = 64;  // default 64
+    int m_max_work_items_in_group = 0;
 
     int m_width = 0;
     int m_height = 0;
-    int m_local_group_size = kDefaultLocalGroupSize;
-    int m_global_work_items = 0;
+    int m_yuv_buff_size = 0;
 
     std::vector<cl::Device> m_devices;
     cl::Context* m_context = nullptr;
@@ -37,6 +37,7 @@ private:
     cl::Kernel* m_kernel_yuvi420_to_nv12 = nullptr;
     cl::Buffer* m_input_buff_yuv = nullptr;
     cl::Buffer* m_output_buff_yuv = nullptr;
+    unsigned char* m_out_host_buff = nullptr;
 
     void Release();
 public:
@@ -64,7 +65,8 @@ private:
 public:
     bool YuvI420ConvertToNV12Rotate(int width, int height, unsigned char* img_yuv_data) {
         // width and height must equal to 8x
-        if (width % 8 != 0 || height % 8 != 0) return false;
+        // check image width and height is 8x at invoker side.
+        // if (width % 8 != 0 || height % 8 != 0) return false;
 
         InitI420ToNV32(width, height);
         bool ok = false;

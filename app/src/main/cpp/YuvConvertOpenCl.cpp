@@ -6,10 +6,6 @@
 #include "Utility.h"
 #include "YuvConvertOpenCl.h"
 
-void YuvI420ToNV12OpenCc::Log(std::string message) {
-    // std::cout << message << std::endl;
-}
-
 void YuvI420ToNV12OpenCc::Release() {
     m_devices.clear();
     delete m_context; m_context = nullptr;
@@ -21,135 +17,6 @@ void YuvI420ToNV12OpenCc::Release() {
 }
 
 bool YuvI420ToNV12OpenCc::Init() {
-    /*std::string UpdateImageDataCode =  "kernel void kYuvI420ToNV12(global const unsigned char* in_i420_uv,"
-                                       "                         global unsigned char* nv12_uv_buff,"
-                                       "                         const int width, const int height,"
-                                       "                         const int lines_per_group) {"
-                                       "  int gid = get_global_id(0);"
-                                       "  int start_u = width * lines_per_group * gid;"
-                                       "  int start_v = (width * height) + start_u;"
-                                       ""
-                                       "  int nv12_uv_start = (width * 2) * lines_per_group * gid;"
-                                       "  int max = width * lines_per_group;"
-                                       "  for (int i = 0; i < max; ++i) {"
-                                       "    int index = nv12_uv_start + i * 2;"
-                                       "    nv12_uv_buff[index] = in_i420_uv[start_u + i];"
-                                       "    nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];"
-                                       "  }"
-                                       "}";
-
-    std::string UpdateImageDataCode{R"CLC(
-      kernel void
-      kYuvI420ToNV12(__global unsigned char* in_i420_uv,
-        __global unsigned char* nv12_uv_buff,
-        const int u_width, const int u_height,
-        const int u_lines_per_group) {
-            int gid = get_global_id(0);
-            int start_u = u_width * u_lines_per_group * gid;
-            int start_v = (u_width * u_height) + start_u;
-
-            int nv12_uv_start = (u_width * 2) * u_lines_per_group * gid;
-            int max = u_width * u_lines_per_group;
-            for (int i = 0; i < max; ++i) {
-              int index = nv12_uv_start + i * 2;
-              nv12_uv_buff[index] = in_i420_uv[start_u + i];
-              nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];
-            }
-      }
-    )CLC"};
-
-     // before use mask
-     // --------------------------------------------------
-         std::string UpdateImageDataCode{R"CLC(
-      // for each target device, modify this printf function name.
-      // #pragma OPENCL EXTENSION cl_arm_printf : enable
-
-      kernel void
-      kYuvI420ToNV12(__global unsigned char* in_i420_uv,
-        __global unsigned char* nv12_uv_buff,
-        const int u_width, const int u_height,
-        const int u_lines_per_group) {
-            int gid = get_global_id(0);
-            int local_line_idx = get_local_id(0);
-            int start_u = u_width * (u_lines_per_group * gid + local_line_idx);
-            int start_v = (u_width * u_height) + start_u;
-
-            // each kernel function deal one line u channel data
-            int nv12_uv_start = (u_width * 2) * (u_lines_per_group * gid + local_line_idx);
-
-            int loops = u_width / 16;
-            loops = 1;
-            for (int l = 0; l < loops; ++l) {
-              int offset = l * 16;
-              uchar16 u16 = vload16(0, in_i420_uv + start_u + offset);
-              uchar16 v16 = vload16(0, in_i420_uv + start_v + offset);
-
-
-              // printf("Hello from opencl...\n");
-
-              ushort16 uv16 = upsample(u16, v16);
-
-              uchar16 bytes16_uv0;
-              //bytes16_uv0.s01 = uv16.s0;
-              //bytes16_uv0.s01 = 0x0506;
-              bytes16_uv0.s0 = 0x05;
-              bytes16_uv0.s1 = 0x06;
-
-              bytes16_uv0.s23 = uv16.s1;
-              bytes16_uv0.s45 = uv16.s2;
-              bytes16_uv0.s67 = uv16.s3;
-              bytes16_uv0.s89 = uv16.s4;
-              bytes16_uv0.sab = uv16.s5;
-              bytes16_uv0.scd = uv16.s6;
-              bytes16_uv0.sef = uv16.s7;
-              // vstore16(bytes16_uv0, 0, nv12_uv_buff + nv12_uv_start + offset);
-              vstore16(bytes16_uv0, 0, nv12_uv_buff + nv12_uv_start + l * 16 * 2);
-
-              uchar16 bytes16_uv1;
-              bytes16_uv1.s01 = uv16.s8;
-              bytes16_uv1.s23 = uv16.s9;
-              bytes16_uv1.s45 = uv16.sa;
-              bytes16_uv1.s67 = uv16.sb;
-              bytes16_uv1.s89 = uv16.sc;
-              bytes16_uv1.sab = uv16.sd;
-              bytes16_uv1.scd = uv16.se;
-              bytes16_uv1.sef = uv16.sf;
-              // vstore16(bytes16_uv1, 0, nv12_uv_buff + nv12_uv_start + offset + 16);
-
-              //  ok- vstore16(bytes16_uv1, 0, nv12_uv_buff + nv12_uv_start + l * 16 * 2 + 16);
-
-              // vstore16(uv16, 0, nv12_uv_buff + nv12_uv_start + offset * 2);
-
-
-              //uchar8 v1 = convert_uchar8_sat(uv16.hi);
-              //uchar8 v2 =  convert_uchar8_sat(uv16.lo);
-              //u16_val.hi = v1;
-              //u16_val.lo = convert_uchar8_sat(uv16.lo);
-
-              //vstore8(u16_val.lo, 0, nv12_uv_buff + nv12_uv_start + offset * 2);
-
-              //uchar16 uv_bytes0;
-              //uv_bytes0.lo = convert_uchar8_sat(uv16.s0123);
-              //uv_bytes0.hi = convert_uchar8_sat(uv16.s4567);
-
-              // uv16.s0123;
-              //vstore16(u16_val, 0, nv12_uv_buff + nv12_uv_start + offset * 2);
-
-              //vstore16(convert_uchar16_sat_rtz(uv16.hi), 0, nv12_uv_buff + nv12_uv_start + offset * 2);
-              //vstore16(convert_uchar16_sat_rtz(uv16.lo), 0, nv12_uv_buff + nv12_uv_start + offset * 2 + 16);
-
-              // ok
-              // vstore8(convert_uchar8_sat(uv16.hi), 0, nv12_uv_buff + nv12_uv_start + offset * 2);
-            }
-            // for (int i = 0; i < u_width; ++i) {
-            //  int index = nv12_uv_start + i * 2;
-            //  nv12_uv_buff[index] = in_i420_uv[start_u + i];
-            //  nv12_uv_buff[index + 1] = in_i420_uv[start_v + i];
-            // }
-      }
-     // --------------------------------------------------
-    */
-
     /*
     get_group_id -- Work-group ID
     get_global_id --  Global work-item ID
@@ -235,12 +102,12 @@ bool YuvI420ToNV12OpenCc::Init() {
     // get platforms
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
-    if (platforms.size() == 0) { Log("can not get any opencl platforms."); return false; }
+    if (platforms.size() == 0) { LOGI("can not get any opencl platforms."); return false; }
     // std::string platform_name = platforms[0].getInfo<CL_PLATFORM_NAME>();
 
     // get devices of GPU
     GetDevices(platforms, CL_DEVICE_TYPE_GPU, &m_devices);
-    if (m_devices.size() == 0) { Log("can not get any GPU devices."); return false; }
+    if (m_devices.size() == 0) { LOGI("can not get any GPU devices."); return false; }
     cl::Device& target_device = m_devices[0];
     std::string use_device_name = target_device.getInfo<CL_DEVICE_NAME>();
 

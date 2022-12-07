@@ -2,14 +2,13 @@
 // Created by Rubus on 12/3/2022.
 //
 
-#include "YuvI420ToNV12Rotate.h"
-
 #include <string>
 #include <vector>
 
 #include "CL/cl.hpp"
 
 #include "Utility.h"
+#include "YuvI420ToNV12Rotate.h"
 
 void YuvI420ToNV12Rotate::Release() {
     m_devices.clear();
@@ -19,6 +18,7 @@ void YuvI420ToNV12Rotate::Release() {
     delete m_kernel_yuvi420_to_nv12; m_kernel_yuvi420_to_nv12 = nullptr;
     delete m_input_buff_yuv; m_input_buff_yuv = nullptr;
     delete m_output_buff_yuv; m_output_buff_yuv = nullptr;
+    delete []m_out_host_buff; m_out_host_buff = nullptr;
 }
 
 std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ########################## begin of OpenCL C code ####################################################################
@@ -137,7 +137,7 @@ bool YuvI420ToNV12Rotate::Init() {
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
     if (platforms.size() == 0) { LOGI("can not get any opencl platforms."); return false; }
-    // std::string platform_name = platforms[0].getInfo<CL_PLATFORM_NAME>();
+    std::string platform_name = platforms[0].getInfo<CL_PLATFORM_NAME>();
 
     // get devices of GPU
     GetDevices(platforms, CL_DEVICE_TYPE_GPU, &m_devices);
@@ -145,16 +145,10 @@ bool YuvI420ToNV12Rotate::Init() {
     cl::Device& target_device = m_devices[0];
     std::string use_device_name = target_device.getInfo<CL_DEVICE_NAME>();
 
+    // get compute units
     int num_compute_units = 0;
     err = target_device.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &num_compute_units);
-    LOGI("compute unites: %d", num_compute_units);
-
-    // https://man.opencl.org/clGetDeviceInfo.html
-    // max work-items in local group, Max allowed work-items in a group.
-    // Maximum number of work-items in a work-group that a device is capable of executing on a single compute unit,
-    // for any given kernel-instance running on the device.
-    int max_local_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
-    LOGI("max work-items in local group: %d", max_local_group_work_items);
+    LOGI("platform name: %s, device name: %s, compute unites: %d", platform_name.c_str(), use_device_name.c_str(), num_compute_units);
 
     // get extensions info
     auto info = target_device.getInfo<CL_DEVICE_EXTENSIONS>();
@@ -173,29 +167,43 @@ bool YuvI420ToNV12Rotate::Init() {
 
     // build device program
     cl::Program::Sources sources;
-    // sources.push_back({UpdateImageDataCode.c_str(), UpdateImageDataCode.length()});
     std::string cl_code = yuvi420_to_nv12_rotate_opencl_code();
     sources.push_back({cl_code.c_str(), cl_code.length()});
 
     m_program = new cl::Program(*m_context, sources);
     if ((err = m_program->build({target_device}, "-cl-std=CL2.0 -O2")) != CL_SUCCESS) {
-        std::string build_error = "Building error: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device);
-        LOGI("%s\n", build_error.c_str());
+        std::string build_error = "building error: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device);
+        LOGI("build opencl code error, %s\n", build_error.c_str());
         return false;
     }
     // bind kernel function
     m_kernel_yuvi420_to_nv12 = new cl::Kernel(*m_program, "kYuvI420ToNV12Rotate", &err);
     if (err != CL_SUCCESS) { return false; }
 
+    // https://man.opencl.org/clGetDeviceInfo.html
+    // max work-items in local group, Max allowed work-items in a group.
+    // Maximum number of work-items in a work-group that a device is capable of executing on a single compute unit,
+    // for any given kernel-instance running on the device.
+    // int max_local_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+    size_t dev_max_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+    std::vector<size_t> dims_max_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>();
+    LOGI("max work-items in local device group: %d", dev_max_group_work_items);
+    size_t kernel_max_group_work_items = m_kernel_yuvi420_to_nv12->getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(target_device);
+    std::vector<size_t> temp_sizes = dims_max_group_work_items;
+    temp_sizes.push_back(dev_max_group_work_items);
+    temp_sizes.push_back(kernel_max_group_work_items);
+    m_max_work_items_in_group = INT32_MAX;
+    for (size_t num: temp_sizes) { m_max_work_items_in_group = num < m_max_work_items_in_group ? num : m_max_work_items_in_group; }
+    LOGI("maximum work-items in a group: %d", m_max_work_items_in_group);
+
     // create input / output buffer
     const int u_width = m_width / 2;
     const int u_height = m_height / 2;
-    const int Y_UV_BUFF_SIZE = m_width * m_height * 1.5;
-    m_input_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, (Y_UV_BUFF_SIZE) * sizeof(unsigned char),nullptr, &err);
-    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, Y_UV_BUFF_SIZE * sizeof(unsigned char), NULL, &err);
-
-    // int u_x_blocks = u_width / kEachUBlockWidthPixels;
-    // int u_y_blocks = u_height / kEachUBlockHeightPixels;
+    m_yuv_buff_size = m_width * m_height * 1.5;
+    m_out_host_buff = new unsigned char[m_yuv_buff_size];
+    m_input_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
+    // m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
+    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, m_yuv_buff_size * sizeof(unsigned char), m_out_host_buff, &err);
 
     // bind kernel function parameters
     const int out_uv_width = u_height * 2;
@@ -222,39 +230,25 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
 
     cl_int err = CL_SUCCESS;
     unsigned char* input_yuv = yuv_i420_img_data;
-    const int u_width = width / 2;
-    const int u_height = height / 2;
-    const int Y_UV_BUFF_SIZE = width * height * 1.5; // y_block + u_block + v_block
 
+    TestCostTime cost_time;
     // upload input data to target device
     cl::Event upload_mem_ev;
-    err = m_queue->enqueueWriteBuffer(*m_input_buff_yuv, CL_FALSE, 0, Y_UV_BUFF_SIZE * sizeof(unsigned char),
-                       input_yuv, nullptr, &upload_mem_ev);
+    err = m_queue->enqueueWriteBuffer(*m_input_buff_yuv, CL_FALSE, 0, m_yuv_buff_size,input_yuv, nullptr, &upload_mem_ev);
+    cost_time.ShowCostTime("Upload memory to device");
 
     // running kernel function
     // https://downloads.ti.com/mctools/esd/docs/opencl/execution/kernels-workgroups-workitems.html
     // global size: work-items, 需要计算的work-item总数目。
-    // local-size: work-items in a group, 一个group是一次被调度到硬件一个内核(cpu, gpu, apu, dsp..)上的执行度量单元，
-    //             一个group需要完成WIG(work-items in a group)个work-items的计算。当WIG > 1, 则硬件计算单元多次执行对应的
-    //             kernel函数来满足完成一个group内计算WIG个work-items的要求。
-    //             硬件上一次local-group(work-group)执行时一般是32或64个硬件线程同时执行。
-    //             xx显然如果只执行一次kernel函数就能完成一个group的计算要求是效率最高的。只要总work-items（实际计算中可以是“逻辑work-item”）
-    //             xx和groups相等，则可以做到一个group执行完成一个"逻辑work-item"的要求，而不用在一个group内多次执行kernel函数。
-
-    // 让"逻辑work-items"和Workgroups数目相等，则每个group处理的时候只需要处理一个“逻辑work-item”
     // https://man.opencl.org/clEnqueueNDRangeKernel.html
     // If local_work_size is NULL and non-uniform-work-groups are enabled, the OpenCL runtime is free to implement the ND-range
     // using uniform or non-uniform work-group sizes, regardless of the divisibility of the global work size.
     // x - work-items in local group
     // y - work-items in local group
-    /*int x_lg_size = 0;
-    for (int n = 64; n >= 1; --n) {
-        if (u_width % n == 0) { x_lg_size = n; break;}
-    }
-    int y_lg_size = 0;
-    for (int n = 64; n >= 1; --n) {
-        if (u_height % n == 0) { y_lg_size = n; break;}
-    }*/
+
+    cost_time.Reset();
+    const int u_width = width / 2;
+    const int u_height = height / 2;
     int u_x_blocks = u_width / kEachUBlockWidthPixels;
     int u_y_blocks = u_height / kEachUBlockHeightPixels;
     int localx = 8;
@@ -268,9 +262,20 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
         localy = 16;
     else if (u_y_blocks < 8)
         localy = u_y_blocks;
+    cost_time.ShowCostTime("Calculate local groups");
 
+    // https://man.opencl.org/clEnqueueNDRangeKernel.html
+    // The total number of work-items in a work-group is computed as local_work_size[0] *...* local_work_size[work_dim - 1].
+    // The total number of work-items in the work-group must be less than or equal to the CL_KERNEL_WORK_GROUP_SIZE value specified in table of
+    // OpenCL Device Queries for clGetDeviceInfo and the number of work-items specified in local_work_size[0],...local_work_size[work_dim - 1] must be
+    // less than or equal to the corresponding values specified by CL_DEVICE_MAX_WORK_ITEM_SIZES[0],... CL_DEVICE_MAX_WORK_ITEM_SIZES[work_dim - 1].
+    //
     // default, 1920 * 1080, 14- 20ms
     // localx = 1; localy = 64; 1920*1080 <= 20ms
+    // localx * localy <= m_max_work_items_in_group
+    // localx = 2; localy = 64; 11 -20ms
+
+    cost_time.Reset();
     cl::Event enqueue_ndrange_ev;
     std::vector<cl::Event> wait_events;
     wait_events.push_back(upload_mem_ev);
@@ -278,13 +283,16 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
                      cl::NDRange(localx, localy), &wait_events, &enqueue_ndrange_ev);
     if (err != CL_SUCCESS) { return false; }
     enqueue_ndrange_ev.wait();
+    cost_time.ShowCostTime("Finished compute on target device");
 
     // read result, read the result put back to host memory
     // overwrite input_yuv
     // std::vector<cl::Event> wait_finish_events;
     // wait_finish_events.push_back(enqueue_ndrange_ev);
-    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, Y_UV_BUFF_SIZE * sizeof(unsigned char), input_yuv,
-                                     nullptr, NULL);
+    cost_time.Reset();
+    // err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, input_yuv, nullptr, NULL);
+    memcpy(input_yuv, m_out_host_buff, m_yuv_buff_size);
+    cost_time.ShowCostTime("Downloaded / Copied data from target device");
 
     return err == CL_SUCCESS;
 }

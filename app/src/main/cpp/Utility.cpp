@@ -19,27 +19,10 @@ uint64_t GetMilliseconds() {
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-/*
- * std::string kernel_code = "void kernel simple_add(global const int *A, global int *B) {"
-                              "     B[get_global_id(0)] = A[get_global_id(0)] * 3;"
-                              "}";
- * */
-/*
-std::string gHelloWorldC =  "\n"
-                            "__kernel void helloworld(__global int* in, __global int* out)\n"
-                            "{\n"
-                            "int num = get_global_id(0);\n"
-                            "out[num] = in[num] * 2.0;\n"
-                            "}\n";
-*/
 std::string gHelloWorldC =  "kernel void helloworld(global const int* in, global int* out) {\n"
                             "  int num = get_global_id(0);"
                             "  out[num] = in[num] * 2.0;"
                             "}";
-
-void Log(std::string err) {
-    std::cout << err << std::endl;
-}
 
 // CL_DEVICE_TYPE_ALL
 // CL_DEVICE_TYPE_CPU
@@ -58,13 +41,13 @@ void TryAdd() {
     // get platforms
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
-    if (platforms.size() == 0) { Log("can not get any opencl platforms."); return; }
+    if (platforms.size() == 0) { LOGI("can not get any opencl platforms."); return; }
     // std::string platform_name = platforms[0].getInfo<CL_PLATFORM_NAME>();
 
     // get devices of GPU
     std::vector<cl::Device> devices;
     GetDevices(platforms, CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.size() == 0) { Log("can not get any GPU devices."); return; }
+    if (devices.size() == 0) { LOGI("can not get any GPU devices."); return; }
     cl::Device& target_device = devices[0];
     std::string use_device_name = target_device.getInfo<CL_DEVICE_NAME>();
 
@@ -77,7 +60,8 @@ void TryAdd() {
     sources.push_back({gHelloWorldC.c_str(), gHelloWorldC.length()});
     cl::Program program_ = cl::Program(context, sources);
     if ((err = program_.build({target_device})) != CL_SUCCESS) {
-        Log("Error building: " + program_.getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device));
+        std::string s = "Error building: " + program_.getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device);
+        LOGI("%s", s.c_str());
         return;
     }
 

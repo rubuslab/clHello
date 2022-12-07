@@ -27,7 +27,6 @@ private:
     cl::Buffer* m_output_buff_uv = nullptr;
 
     void Release();
-    void Log(std::string message);
 public:
     YuvI420ToNV12OpenCc(int width, int height): m_width(width), m_height(height) {}
     ~YuvI420ToNV12OpenCc() { Release(); }
