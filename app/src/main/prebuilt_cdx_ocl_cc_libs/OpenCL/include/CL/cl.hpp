@@ -167,7 +167,7 @@
 #if defined(__APPLE__) || defined(__MACOSX)
 #include <OpenCL/opencl.h>
 #else
-#include <prebuilt_cc_libs/OpenCL/include/CL/opencl.h>
+#include <prebuilt_cdx_ocl_cc_libs/OpenCL/include/CL/opencl.h>
 #endif // !__APPLE__
 
 #if (_MSC_VER >= 1700) || (__cplusplus >= 201103L)

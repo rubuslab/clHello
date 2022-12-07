@@ -6,7 +6,7 @@
 cmake_minimum_required(VERSION 3.18.1)
 
 # Declares and names the project.
-project("ccsharehello")
+project("cdx_yuvconvert_i420nv12")
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -23,7 +23,7 @@ add_library( # Sets the name of the library.
         # Provides a relative path to your source file(s).
         native_ocl_i420nv12_lib.cpp Utility.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp)
 
-# include_directories(${CMAKE_SOURCE_DIR}/../prebuilt_cc_libs/OpenCL/include)
+# include_directories(${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/OpenCL/include)
 include_directories(${CMAKE_SOURCE_DIR}/../)
 
 # 打印日志信息
@@ -62,7 +62,7 @@ message("log library path: ${log-lib}")
 #   CMAKE_SOURCE_DIR 指的是当前的文件地址
 #   -L 参数指定动态库的查找路径
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../prebuilt_cc_libs/")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/")
 message("CMAKE_CXX_FLAGS is : ${CMAKE_CXX_FLAGS}")
 
 # 链接函数库

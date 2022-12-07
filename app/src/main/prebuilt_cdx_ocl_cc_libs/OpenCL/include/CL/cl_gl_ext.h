@@ -36,7 +36,7 @@ extern "C" {
 #ifdef __APPLE__
     #include <OpenCL/cl_gl.h>
 #else
-    #include <prebuilt_cc_libs/OpenCL/include/CL/cl_gl.h>
+    #include <prebuilt_cdx_ocl_cc_libs/OpenCL/include/CL/cl_gl.h>
 #endif
 
 /*

@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string>
 
-#include "prebuilt_cc_libs/OpenCL/include/CL/cl.hpp"
+#include "prebuilt_cdx_ocl_cc_libs/OpenCL/include/CL/cl.hpp"
 #include <android/log.h>
 
 #define LOGV(...)__android_log_print(ANDROID_LOG_VERBOSE, " Tag", __VA_ARGS__)   // VERBOSE
