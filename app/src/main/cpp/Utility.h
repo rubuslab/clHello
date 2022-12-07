@@ -31,7 +31,7 @@ void cc_kYuvI420ToNV12Rotate_HostDebug_Blocks(const unsigned char* in_buff_yuv, 
                                        int uw_pos,
                                        int uh_pos);
 #ifdef DEBUG
-#define TEST_COST_TIME 1
+#define TEST_COST_TIME 0
 #else
 #endif
 

@@ -57,6 +57,7 @@
         android:layout_height="48dp"
         android:layout_marginStart="11dp"
         android:layout_marginTop="20dp"
+        android:onClick="onButtonClickYuvI420ConvertNv12Small"
         android:text="To NV12 small data debug"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

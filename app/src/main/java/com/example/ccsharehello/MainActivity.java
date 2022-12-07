@@ -239,6 +239,5 @@ public class MainActivity extends AppCompatActivity {
      * which is packaged with this application.
      */
     public native String getDevicesNameFromJNI();
-    public native void SetImageDataJNI(int width, int height, int[] imgData);
     public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data);
 }
