@@ -27,7 +27,7 @@
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
 #else
-#include <CL/cl.h>
+#include <prebuilt_cc_libs/OpenCL/include/CL/cl.h>
 #endif	
 
 #ifdef __cplusplus

@@ -19,7 +19,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Used to load the 'ccsharehello' library on application startup.
     static {
-        System.loadLibrary("ccsharehello");
+        System.loadLibrary("cdx_ocl_yuv2nv12");
     }
 
     private ActivityMainBinding binding;
@@ -37,15 +37,6 @@ public class MainActivity extends AppCompatActivity {
         tv.setText(getDevicesNameFromJNI());
 
         mTextCost = (TextView) findViewById(R.id.text_cost);
-    }
-
-    public void onSetImageDataClick(View view) {
-        int width = 60;
-        int height = 40;
-        int[] img = new int[width * height];
-        SetImageDataJNI(width, height, img);
-        String sz = img.toString();
-        Log.i("TEST", sz);
     }
 
     private boolean isFileExist(String filename) {

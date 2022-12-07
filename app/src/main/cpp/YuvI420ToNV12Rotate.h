@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "Singleton.h"
-#include "CL/cl.hpp"
+#include "prebuilt_cc_libs/OpenCL/include/CL/cl.hpp"
 
 #ifndef R_CODE
 #define R_CODE(...) std::string(" "#__VA_ARGS__" ") // evil stringification macro, similar syntax to raw string R"(...)"

@@ -19,17 +19,6 @@
         app:layout_constraintVertical_bias="0.865" />
 
     <Button
-        android:id="@+id/button_set_img_data"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:layout_marginTop="20dp"
-        android:onClick="onSetImageDataClick"
-        android:text="Set Image Data"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <Button
         android:id="@+id/button_i420_to_nv12"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -39,7 +28,7 @@
         android:onClick="onButtonI420ToNV12Click"
         android:text="I420 to NV12 - from file 1280 x 720"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/button_set_img_data" />
+        app:layout_constraintTop_toBottomOf="@+id/button_to_nv12_small" />
 
     <TextView
         android:id="@+id/text_cost"
@@ -64,13 +53,12 @@
 
     <Button
         android:id="@+id/button_to_nv12_small"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
+        android:layout_width="333dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="11dp"
         android:layout_marginTop="20dp"
-        android:onClick="onButtonClickYuvI420ConvertNv12Small"
-        android:text="To NV12 small"
-        app:layout_constraintStart_toEndOf="@+id/button_set_img_data"
+        android:text="To NV12 small data debug"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

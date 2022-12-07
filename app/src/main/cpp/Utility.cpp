@@ -11,8 +11,6 @@
 //#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 //#endif
 
-#include "CL/cl.hpp"
-
 uint64_t GetMilliseconds() {
     struct timeval tv;
     gettimeofday(&tv, nullptr);

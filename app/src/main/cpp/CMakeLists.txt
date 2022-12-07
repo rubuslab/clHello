@@ -14,15 +14,17 @@ project("ccsharehello")
 # Gradle automatically packages shared libraries with your APK.
 # 设置函数库编译
 add_library( # Sets the name of the library.
-        ccsharehello
+        #ccsharehello
+        cdx_ocl_yuv2nv12
 
         # Sets the library as a shared library.
         SHARED
 
         # Provides a relative path to your source file(s).
-        native-lib.cpp Utility.cpp SetImageData.cpp YuvConvertOpenCl.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp)
+        native_ocl_i420nv12_lib.cpp Utility.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp)
 
-include_directories(${CMAKE_SOURCE_DIR}/../prebuilt_cc_libs/OpenCL/include)
+# include_directories(${CMAKE_SOURCE_DIR}/../prebuilt_cc_libs/OpenCL/include)
+include_directories(${CMAKE_SOURCE_DIR}/../)
 
 # 打印日志信息
 #       ${ANDROID_ABI} 的作用是获取当前的 CPU 指令集架构
@@ -71,10 +73,10 @@ message("CMAKE_CXX_FLAGS is : ${CMAKE_CXX_FLAGS}")
 # can link multiple libraries, such as libraries you define in this
 # build script, prebuilt third-party libraries, or system libraries.
 target_link_libraries( # Specifies the target library.
-        ccsharehello
+        cdx_ocl_yuv2nv12
 
         # 表示 编译 native-lib 模块, 要链接 add 模块
-        OpenCL
+        cdx_OpenCL
 
         # Links the target library to the log library
         # included in the NDK.

@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "CL/cl.hpp"
-
 #include "Utility.h"
 #include "YuvI420ToNV12Rotate.h"
 

@@ -2,8 +2,6 @@
 #include <string>
 
 #include "Utility.h"
-#include "SetImageData.h"
-#include "YuvConvertOpenCl.h"
 #include "YuvI420ToNV12Rotate.h"
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -12,22 +10,6 @@ Java_com_example_ccsharehello_MainActivity_getDevicesNameFromJNI(
         jobject /* this */) {
     std::string name = GetDevicesName();
     return env->NewStringUTF(name.c_str());
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_ccsharehello_MainActivity_SetImageDataJNI(
-        JNIEnv* env,
-        jobject activity/* this */,
-        jint width,
-        jint height,
-        jintArray imgData) {
-    // get data array, addref()
-    jint* img_data = env->GetIntArrayElements(imgData, NULL);
-
-    SetImageData(width, height, img_data);
-
-    // release() to addref()
-    env->ReleaseIntArrayElements(imgData, img_data, 0);
 }
 
 extern "C"

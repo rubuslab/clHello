@@ -3,7 +3,6 @@
 //
 
 #include "Utility.h"
-#include "CL/cl.hpp"
 
 template<typename T>
 class N2Vec {
