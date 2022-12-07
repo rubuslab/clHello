@@ -18,7 +18,6 @@ void YuvI420ToNV12Rotate::Release() {
     delete m_kernel_yuvi420_to_nv12; m_kernel_yuvi420_to_nv12 = nullptr;
     delete m_input_buff_yuv; m_input_buff_yuv = nullptr;
     delete m_output_buff_yuv; m_output_buff_yuv = nullptr;
-    delete []m_out_host_buff; m_out_host_buff = nullptr;
 }
 
 std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ########################## begin of OpenCL C code ####################################################################
@@ -141,6 +140,7 @@ bool YuvI420ToNV12Rotate::Init() {
 
     // get devices of GPU
     GetDevices(platforms, CL_DEVICE_TYPE_GPU, &m_devices);
+    // GetDevices(platforms, CL_DEVICE_TYPE_DEFAULT, &m_devices);
     if (m_devices.size() == 0) { LOGI("can not get any GPU devices."); return false; }
     cl::Device& target_device = m_devices[0];
     std::string use_device_name = target_device.getInfo<CL_DEVICE_NAME>();
@@ -200,10 +200,8 @@ bool YuvI420ToNV12Rotate::Init() {
     const int u_width = m_width / 2;
     const int u_height = m_height / 2;
     m_yuv_buff_size = m_width * m_height * 1.5;
-    m_out_host_buff = new unsigned char[m_yuv_buff_size];
     m_input_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
-    // m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
-    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, m_yuv_buff_size * sizeof(unsigned char), m_out_host_buff, &err);
+    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
 
     // bind kernel function parameters
     const int out_uv_width = u_height * 2;
@@ -290,8 +288,7 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
     // std::vector<cl::Event> wait_finish_events;
     // wait_finish_events.push_back(enqueue_ndrange_ev);
     cost_time.Reset();
-    // err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, input_yuv, nullptr, NULL);
-    memcpy(input_yuv, m_out_host_buff, m_yuv_buff_size);
+    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, input_yuv, nullptr, NULL);
     cost_time.ShowCostTime("Downloaded / Copied data from target device");
 
     return err == CL_SUCCESS;

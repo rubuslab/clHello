@@ -37,7 +37,6 @@ private:
     cl::Kernel* m_kernel_yuvi420_to_nv12 = nullptr;
     cl::Buffer* m_input_buff_yuv = nullptr;
     cl::Buffer* m_output_buff_yuv = nullptr;
-    unsigned char* m_out_host_buff = nullptr;
 
     void Release();
 public:

@@ -32,7 +32,10 @@ void GetDevices(const std::vector<cl::Platform>& platforms,
         std::vector<cl::Device>* devices) {
     for(int i = 0; i < platforms.size(); ++i) {
         std::vector<cl::Device> temp_devices;
-        platforms[i].getDevices(type, &temp_devices);
+        cl_int err = platforms[i].getDevices(type, &temp_devices);
+        if (err != CL_SUCCESS) {
+            LOGI("Can not get any devices of type: %d, error code: %d", type, err);
+        }
         devices->insert(devices->end(), temp_devices.begin(), temp_devices.end());
     }
 }
