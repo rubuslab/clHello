@@ -19,7 +19,11 @@ public class MainActivity extends AppCompatActivity {
 
     // Used to load the 'ccsharehello' library on application startup.
     static {
-        System.loadLibrary("cdx_ocl_yuv2nv12");
+        System.loadLibrary("jni_cdx_ocl_yuv2nv12");
+
+        /*System.loadLibrary("arm_compute_core");
+        System.loadLibrary("arm_compute");
+        System.loadLibrary("arm_compute_graph");*/
     }
 
     private ActivityMainBinding binding;

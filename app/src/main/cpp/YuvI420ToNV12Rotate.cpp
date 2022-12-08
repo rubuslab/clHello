@@ -8,6 +8,18 @@
 #include "Utility.h"
 #include "YuvI420ToNV12Rotate.h"
 
+// ---------------test neon---------------------------
+#include "arm_compute/runtime/NEON/NEFunctions.h"
+
+#include "arm_compute/core/Types.h"
+#include "utils/ImageLoader.h"
+#include "utils/Utils.h"
+
+void hineonn() {
+    arm_compute::Image aa;
+}
+// ---------------test neon---------------------------
+
 void YuvI420ToNV12Rotate::Release() {
     m_devices.clear();
     delete m_context; m_context = nullptr;
