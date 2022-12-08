@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string>
 
-#include "CL/cl.hpp"
+#include "prebuilt_cdx_ocl_cc_libs/OpenCL/include/CL/cl.hpp"
 #include <android/log.h>
 
 #define LOGV(...)__android_log_print(ANDROID_LOG_VERBOSE, " Tag", __VA_ARGS__)   // VERBOSE
@@ -30,8 +30,10 @@ void cc_kYuvI420ToNV12Rotate_HostDebug_Blocks(const unsigned char* in_buff_yuv, 
                                        const int u_block_size,                         // 7, u_width * u_height
                                        int uw_pos,
                                        int uh_pos);
-
-#define TEST_COST_TIME 1
+#ifdef DEBUG
+#define TEST_COST_TIME 0
+#else
+#endif
 
 #ifdef TEST_COST_TIME
 class TestCostTime {
@@ -52,6 +54,7 @@ class TestCostTime {
 public:
     TestCostTime() {}
     ~TestCostTime() {}
+    void Reset() {}
     void ShowCostTime(const char* message) {}
 };
 #endif // TEST_COST_TIME

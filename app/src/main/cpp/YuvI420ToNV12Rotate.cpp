@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "CL/cl.hpp"
-
 #include "Utility.h"
 #include "YuvI420ToNV12Rotate.h"
 
@@ -24,6 +22,9 @@ std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ###########
     // Only required by version 1.0.0 of the extension, version 2.0.0 does not
     // require the following pragma.
     // #pragma OPENCL EXTENSION cl_arm_printf : enable
+
+    ulong8 indexs8 =   (ulong8)(0, 1, 2, 3, 4, 5, 6, 7);
+    ulong4 u_indexs4 = (ulong4)(0, 1, 2, 3);
 
     kernel void
     kYuvI420ToNV12Rotate(__global const unsigned char* in_buff_yuv,  // 0, m_input_buff_yuv
@@ -48,18 +49,18 @@ std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ###########
 
         // origin - y image block
         int lu_start = (uy * u_block_height * 2) * y_width + (ux * u_block_width * 2);
-        int8 indexs = (int8)(0, 1, 2, 3, 4, 5, 6, 7);
-        int8 offsets = indexs * y_width;
-        offsets += lu_start;
+        // ulong8 indexs8 = (ulong8)(0, 1, 2, 3, 4, 5, 6, 7);
+        ulong8 offsets = indexs8 * y_width;
+        offsets += (lu_start + (ulong)in_buff_yuv);
         // load y block data, 8 x 8 (width * height)
-        uchar8 yl0 = vload8(0, in_buff_yuv + offsets.s0);
-        uchar8 yl1 = vload8(0, in_buff_yuv + offsets.s1);
-        uchar8 yl2 = vload8(0, in_buff_yuv + offsets.s2);
-        uchar8 yl3 = vload8(0, in_buff_yuv + offsets.s3);
-        uchar8 yl4 = vload8(0, in_buff_yuv + offsets.s4);
-        uchar8 yl5 = vload8(0, in_buff_yuv + offsets.s5);
-        uchar8 yl6 = vload8(0, in_buff_yuv + offsets.s6);
-        uchar8 yl7 = vload8(0, in_buff_yuv + offsets.s7);
+        uchar8 yl0 = vload8(0, (const unsigned char*)(offsets.s0));
+        uchar8 yl1 = vload8(0, (const unsigned char*)(offsets.s1));
+        uchar8 yl2 = vload8(0, (const unsigned char*)(offsets.s2));
+        uchar8 yl3 = vload8(0, (const unsigned char*)(offsets.s3));
+        uchar8 yl4 = vload8(0, (const unsigned char*)(offsets.s4));
+        uchar8 yl5 = vload8(0, (const unsigned char*)(offsets.s5));
+        uchar8 yl6 = vload8(0, (const unsigned char*)(offsets.s6));
+        uchar8 yl7 = vload8(0, (const unsigned char*)(offsets.s7));
 
         // rotated - y image block
         uchar8 rl0 = (uchar8)(yl7.s0, yl6.s0, yl5.s0, yl4.s0, yl3.s0, yl2.s0, yl1.s0, yl0.s0);
@@ -74,38 +75,40 @@ std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ###########
         // rotated u block height equal to u-block-width, rotated y width equal to y-height.
         int2 ru_pos = (int2)(max_u_y_index - uy, ux);
         int rlu_start = (ru_pos.y * u_block_width * 2) * y_height + (ru_pos.x * u_block_height * 2);
-        int8 r_offsets = indexs * y_height;
-        r_offsets += rlu_start;
+        ulong8 r_offsets = indexs8 * y_height;
+        r_offsets += (rlu_start + (ulong)out_buff_yuv);
         // write rotated y image data
-        vstore8(rl0, 0, out_buff_yuv + r_offsets.s0);
-        vstore8(rl1, 0, out_buff_yuv + r_offsets.s1);
-        vstore8(rl2, 0, out_buff_yuv + r_offsets.s2);
-        vstore8(rl3, 0, out_buff_yuv + r_offsets.s3);
-        vstore8(rl4, 0, out_buff_yuv + r_offsets.s4);
-        vstore8(rl5, 0, out_buff_yuv + r_offsets.s5);
-        vstore8(rl6, 0, out_buff_yuv + r_offsets.s6);
-        vstore8(rl7, 0, out_buff_yuv + r_offsets.s7);
+        vstore8(rl0, 0, (unsigned char*)(r_offsets.s0));
+        vstore8(rl1, 0, (unsigned char*)(r_offsets.s1));
+        vstore8(rl2, 0, (unsigned char*)(r_offsets.s2));
+        vstore8(rl3, 0, (unsigned char*)(r_offsets.s3));
+        vstore8(rl4, 0, (unsigned char*)(r_offsets.s4));
+        vstore8(rl5, 0, (unsigned char*)(r_offsets.s5));
+        vstore8(rl6, 0, (unsigned char*)(r_offsets.s6));
+        vstore8(rl7, 0, (unsigned char*)(r_offsets.s7));
 
         // u - v data
         // load u data
         const unsigned char* in_u_buff = in_buff_yuv + y_bytes_size;
         int u_start = (uy * u_block_height) * u_width + (ux * u_block_width);
-        int4 u_indexs = (int4)(0, 1, 2, 3);
-        int4 u_offsets = u_indexs * u_width;
-        u_offsets += u_start;
+        // ulong4 u_indexs4 = (ulong4)(0, 1, 2, 3);
+        ulong4 u_offsets = u_indexs4 * u_width;
+        u_offsets += (u_start + (ulong)(in_u_buff));
         // load u block 4 lines
-        uchar4 ul0 = vload4(0, in_u_buff + u_offsets.s0);
-        uchar4 ul1 = vload4(0, in_u_buff + u_offsets.s1);
-        uchar4 ul2 = vload4(0, in_u_buff + u_offsets.s2);
-        uchar4 ul3 = vload4(0, in_u_buff + u_offsets.s3);
+        uchar4 ul0 = vload4(0, (const unsigned char*)(u_offsets.s0));
+        uchar4 ul1 = vload4(0, (const unsigned char*)(u_offsets.s1));
+        uchar4 ul2 = vload4(0, (const unsigned char*)(u_offsets.s2));
+        uchar4 ul3 = vload4(0, (const unsigned char*)(u_offsets.s3));
 
         // load v block 4 lines
-        const unsigned char* in_v_buff = in_u_buff + u_bytes_size;
-        int4 v_offsets = u_offsets;
-        uchar4 vl0 = vload4(0, in_v_buff + v_offsets.s0);
-        uchar4 vl1 = vload4(0, in_v_buff + v_offsets.s1);
-        uchar4 vl2 = vload4(0, in_v_buff + v_offsets.s2);
-        uchar4 vl3 = vload4(0, in_v_buff + v_offsets.s3);
+        ulong4 v_offsets = u_offsets;
+        v_offsets += u_bytes_size;
+        // const unsigned char* in_v_buff = in_u_buff + u_bytes_size;
+
+        uchar4 vl0 = vload4(0, (const unsigned char*)(v_offsets.s0));
+        uchar4 vl1 = vload4(0, (const unsigned char*)(v_offsets.s1));
+        uchar4 vl2 = vload4(0, (const unsigned char*)(v_offsets.s2));
+        uchar4 vl3 = vload4(0, (const unsigned char*)(v_offsets.s3));
 
         // uv lines
         uchar8 uvl0 = (uchar8)(ul3.s0, vl3.s0, ul2.s0, vl2.s0, ul1.s0, vl1.s0, ul0.s0, vl0.s0);
@@ -115,13 +118,13 @@ std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ###########
 
         // rotated image r-width equal to y_height
         int uv_start = y_bytes_size + (ru_pos.y * u_block_height) * y_height + ru_pos.x * u_block_width * 2;  // r-width = y_height
-        int4 uv_offsets = u_indexs * y_height;                                                                // r-width = y_height
-        uv_offsets += uv_start;
+        ulong4 uv_offsets = u_indexs4 * y_height;                                                             // r-width = y_height
+        uv_offsets += (uv_start + (ulong)(out_buff_yuv));
         // write rotated uv data
-        vstore8(uvl0, 0, out_buff_yuv + uv_offsets.s0);
-        vstore8(uvl1, 0, out_buff_yuv + uv_offsets.s1);
-        vstore8(uvl2, 0, out_buff_yuv + uv_offsets.s2);
-        vstore8(uvl3, 0, out_buff_yuv + uv_offsets.s3);
+        vstore8(uvl0, 0, (unsigned char*)(uv_offsets.s0));
+        vstore8(uvl1, 0, (unsigned char*)(uv_offsets.s1));
+        vstore8(uvl2, 0, (unsigned char*)(uv_offsets.s2));
+        vstore8(uvl3, 0, (unsigned char*)(uv_offsets.s3));
     }
 );} // ############################################################### end of OpenCL C code #####################################################################
 
@@ -148,7 +151,9 @@ bool YuvI420ToNV12Rotate::Init() {
     // get compute units
     int num_compute_units = 0;
     err = target_device.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &num_compute_units);
-    LOGI("platform name: %s, device name: %s, compute unites: %d", platform_name.c_str(), use_device_name.c_str(), num_compute_units);
+    int addr_bits = target_device.getInfo<CL_DEVICE_ADDRESS_BITS >();
+    LOGI("platform name: %s, device name: %s, compute unites: %d, address bits: %d [32bits or 64 bits]",
+         platform_name.c_str(), use_device_name.c_str(), num_compute_units, addr_bits);
 
     // get extensions info
     auto info = target_device.getInfo<CL_DEVICE_EXTENSIONS>();
@@ -185,7 +190,7 @@ bool YuvI420ToNV12Rotate::Init() {
     // Maximum number of work-items in a work-group that a device is capable of executing on a single compute unit,
     // for any given kernel-instance running on the device.
     // int max_local_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
-    size_t dev_max_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+    int32_t dev_max_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
     std::vector<size_t> dims_max_group_work_items = target_device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>();
     LOGI("max work-items in local device group: %d", dev_max_group_work_items);
     size_t kernel_max_group_work_items = m_kernel_yuvi420_to_nv12->getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(target_device);
@@ -222,12 +227,12 @@ bool YuvI420ToNV12Rotate::Init() {
     return true;
 }
 
-bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigned char* yuv_i420_img_data) {
+bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data) {
     // debug only, remove comments for debug
     // return ConvertToNV12RotateImpl_HostDebug(width, height, yuv_i420_img_data);
 
     cl_int err = CL_SUCCESS;
-    unsigned char* input_yuv = yuv_i420_img_data;
+    unsigned char* input_yuv = img_yuv_i420_data;
 
     TestCostTime cost_time;
     // upload input data to target device
@@ -288,7 +293,7 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
     // std::vector<cl::Event> wait_finish_events;
     // wait_finish_events.push_back(enqueue_ndrange_ev);
     cost_time.Reset();
-    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, input_yuv, nullptr, NULL);
+    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, out_nv12_data, nullptr, NULL);
     cost_time.ShowCostTime("Downloaded / Copied data from target device");
 
     return err == CL_SUCCESS;
