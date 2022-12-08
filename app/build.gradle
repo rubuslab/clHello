@@ -17,6 +17,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags '-std=c++17'
+                arguments "-DANDROID_STL=c++_shared"
             }
         }
         ndk {
@@ -37,19 +38,24 @@ android {
     externalNativeBuild {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
-            version '3.18.1'
+            version '3.22.1'
         }
     }
-    buildFeatures {
+
+ buildFeatures {
         viewBinding true
     }
 
     sourceSets {
-        main { jniLibs.srcDirs = ["3rd/prebuilt_arm/lib/arm64-v8a-neon/"]}
+        main {
+            // jniLibs.srcDir  'src/main/jniLibs/arm64-v8a/'
+        }
     }
 }
 
 dependencies {
+    // implementation fileTree(dir: 'jniLibs/arm64-v8a', include: ['*.so'])
+
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'com.google.android.material:material:1.7.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'

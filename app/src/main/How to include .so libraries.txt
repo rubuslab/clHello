@@ -1,0 +1,17 @@
+https://stackoverflow.com/questions/24357687/how-to-include-so-library-in-android-studio
+
+1. Create Folder "jniLibs" inside "src/main/"
+2. Put all your .so libraries inside "src/main/jniLibs" folder
+3.Folder structure looks like,
+|--app:
+|--|--src:
+|--|--|--main
+|--|--|--|--jniLibs
+|--|--|--|--|--armeabi
+|--|--|--|--|--|--.so Files
+|--|--|--|--|--x86
+|--|--|--|--|--|--.so Files
+No extra code requires just sync your project and run your application.
+
+Reference
+https://github.com/commonsguy/sqlcipher-gradle/tree/master/src/main

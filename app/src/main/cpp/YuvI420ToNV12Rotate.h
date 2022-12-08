@@ -35,8 +35,8 @@ private:
     cl::Program* m_program = nullptr;
     cl::CommandQueue* m_queue = nullptr;
     cl::Kernel* m_kernel_yuvi420_to_nv12 = nullptr;
-    cl::Buffer* m_input_buff_yuv = nullptr;
-    cl::Buffer* m_output_buff_yuv = nullptr;
+    cl::Buffer* m_input_cl_buff_yuv = nullptr;
+    cl::Buffer* m_output_cl_buff_yuv = nullptr;
 
     void Release();
 public:
@@ -45,7 +45,7 @@ public:
     bool IsSameSize(int w, int h) { return (m_width == w && m_height == h); }
 
     bool Init();
-    bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_data);
+    bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data);
 };
 
 class YuvConvertRotateHelper:public Singleton<YuvConvertRotateHelper> {
@@ -62,14 +62,14 @@ private:
     void ReleaseYuvI420ToNV12Obj() { delete m_yuvi420_to_nv12_obj; m_yuvi420_to_nv12_obj = nullptr; }
 
 public:
-    bool YuvI420ConvertToNV12Rotate(int width, int height, unsigned char* img_yuv_data) {
+    bool YuvI420ConvertToNV12Rotate(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data) {
         // width and height must equal to 8x
         // check image width and height is 8x at invoker side.
         // if (width % 8 != 0 || height % 8 != 0) return false;
 
         InitI420ToNV32(width, height);
         bool ok = false;
-        if (m_yuvi420_to_nv12_obj) { ok = m_yuvi420_to_nv12_obj->ConvertToNV12RotateImpl(width, height, img_yuv_data); }
+        if (m_yuvi420_to_nv12_obj) { ok = m_yuvi420_to_nv12_obj->ConvertToNV12RotateImpl(width, height, img_yuv_i420_data, out_nv12_data); }
         if (!ok) { ReleaseYuvI420ToNV12Obj(); }
         return ok;
     }

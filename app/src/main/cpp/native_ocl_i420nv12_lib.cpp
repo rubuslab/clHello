@@ -14,19 +14,28 @@ Java_com_example_ccsharehello_MainActivity_getDevicesNameFromJNI(
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_example_ccsharehello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject thiz, jint width, jint height,
-                                                                jbyteArray img_data) {
+Java_com_example_ccsharehello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject thiz,
+                                  jint width, jint height,
+                                  jbyteArray j_yuv_i420_data,
+                                  jbyteArray j_out_nv12_data) {
     // width and height must equal to 8x
     // check this in java side
     if (width % 8 != 0 || height % 8 != 0) return false;
 
     // uint64_t start = GetMilliseconds();
     // get data, addref()
-    jbyte* img_bytes = env->GetByteArrayElements(img_data, NULL);
+    jbyte* img_i420_bytes = env->GetByteArrayElements(j_yuv_i420_data, NULL);
+    jbyte* out_nv12_data = env->GetByteArrayElements(j_out_nv12_data, NULL);
+
     // bool success = YuvConvertHelper::getInstance().YuvI420ConvertToNV12(width, height, (unsigned char*)img_bytes);
-    bool success = YuvConvertRotateHelper::getInstance().YuvI420ConvertToNV12Rotate(width, height, (unsigned char*)img_bytes);
+    bool success = YuvConvertRotateHelper::getInstance().YuvI420ConvertToNV12Rotate(width,
+                                                           height,
+                                                           (unsigned char*)img_i420_bytes,
+                                                           (unsigned char*)out_nv12_data);
+
     // release() to addref()
-    env->ReleaseByteArrayElements(img_data, img_bytes, 0);
+    env->ReleaseByteArrayElements(j_yuv_i420_data, img_i420_bytes, 0);
+    env->ReleaseByteArrayElements(j_out_nv12_data, out_nv12_data, 0);
     // uint64_t  end = GetMilliseconds();
     // cost time milliseconds
     // uint32_t cost = (uint32_t)(end - start);

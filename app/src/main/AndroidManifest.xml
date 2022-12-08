@@ -20,7 +20,7 @@
         <uses-native-library android:name="libOpenCL.so" android:required="false"/>
         <uses-native-library android:name="libarm_compute_core.so" android:required="false"/>
         <uses-native-library android:name="libarm_compute.so" android:required="false"/>
-        <uses-native-library android:name="3rd/prebuilt_arm/lib/arm64-v8a-neon/libarm_compute_graph.so" android:required="false"/>
+        <uses-native-library android:name="libarm_compute_graph.so" android:required="false"/>
 
         <activity
             android:name=".MainActivity"

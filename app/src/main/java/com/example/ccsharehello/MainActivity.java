@@ -19,11 +19,10 @@ public class MainActivity extends AppCompatActivity {
 
     // Used to load the 'ccsharehello' library on application startup.
     static {
-        System.loadLibrary("jni_cdx_ocl_yuv2nv12");
-
-        /*System.loadLibrary("arm_compute_core");
+        System.loadLibrary("jni_ocl_yuv2nv12");
+        System.loadLibrary("arm_compute_core");
         System.loadLibrary("arm_compute");
-        System.loadLibrary("arm_compute_graph");*/
+        System.loadLibrary("arm_compute_graph");
     }
 
     private ActivityMainBinding binding;
@@ -73,11 +72,12 @@ public class MainActivity extends AppCompatActivity {
             FileInputStream in = new FileInputStream(filename);
             int len = in.available();
             byte[] i420_yuv = new byte[len];
+            byte[] outNv12Data = new byte[len];
             in.read(i420_yuv);
             in.close();
 
             long start = System.currentTimeMillis();
-            boolean ok = ConvertI420ToNV12JNI(width, height, i420_yuv);
+            boolean ok = ConvertI420ToNV12JNI(width, height, i420_yuv, outNv12Data);
             // i420_yuv
             long end = System.currentTimeMillis();
             int cost = (int)(end - start);
@@ -87,10 +87,11 @@ public class MainActivity extends AppCompatActivity {
             // write to new file
             String out_filename = path + "/" + String.format("cl_out_nv12_%dx%d.YUV", width, height);
             FileOutputStream out = new FileOutputStream(out_filename);
-            out.write(i420_yuv);
+            out.write(outNv12Data);
             out.close();
 
             i420_yuv = null;
+            outNv12Data = null;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -99,7 +100,8 @@ public class MainActivity extends AppCompatActivity {
     private void TestYuvI420ConvertNv12_SmallDebug(int width, int height) {
         // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
         // 测试时候u高度大于1，可以为2,               height = 4
-        byte[] img = new byte[(int)(width * height * 1.5)];
+        byte[] img_yuv_i420_data = new byte[(int)(width * height * 1.5)];
+        byte[] outNv12Data = new byte[(int)(width * height * 1.5)];
         // set y data
         Log.i("Test", String.format("luminance, width: %d, height: %d", width, height));
         Log.i("Test", "------------------------------------------------------------");
@@ -110,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
             for (int w = 0; w < width; ++w) {
                 count = count % 128;
                 byte val = (byte)count++;
-                img[h * width + w] = val;
+                img_yuv_i420_data[h * width + w] = val;
                 sz = sz + String.format("%3d ", val);
             }
             Log.i("Test", sz);
@@ -127,8 +129,8 @@ public class MainActivity extends AppCompatActivity {
             sz = String.format("u-h%d ", h);
             for (int w = 0; w < u_width; ++w) {
                 int offset = u_width * h + w;
-                img[u_start + offset] = u_count;
-                img[v_start + offset] = v_count++;
+                img_yuv_i420_data[u_start + offset] = u_count;
+                img_yuv_i420_data[v_start + offset] = v_count++;
                 sz = sz + String.format("%3d ", u_count++);
             }
             Log.i("Test", sz);
@@ -139,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
             sz = String.format("v-h%d ", h);
             for (int w = 0; w < u_width; ++w) {
                 int offset = u_width * h + w;
-                byte val = img[v_start + offset];
+                byte val = img_yuv_i420_data[v_start + offset];
                 sz = sz + String.format("%3d ", val);
             }
             Log.i("Test", sz);
@@ -149,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
         // start convert
 
         long start = System.currentTimeMillis();
-        boolean ok = ConvertI420ToNV12JNI(width, height, img);
+        boolean ok = ConvertI420ToNV12JNI(width, height, img_yuv_i420_data, outNv12Data);
         long end = System.currentTimeMillis();
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
@@ -165,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
         for (int h = 0; h < new_height; ++h) {
             sz = "";
             for (int w = 0; w < new_width; ++w) {
-                int val = img[h * new_width + w];
+                int val = outNv12Data[h * new_width + w];
                 sz = sz + String.format("%3d ", val);
             }
             Log.i("Test", sz);
@@ -175,19 +177,20 @@ public class MainActivity extends AppCompatActivity {
         for (int h = 0; h < uv_height; ++h) {
             sz = String.format("uv-h%d ", h);
             for (int w = 0; w < new_width; ++w) {
-                int val = img[(new_height + h) * new_width + w];
+                int val = outNv12Data[(new_height + h) * new_width + w];
                 sz = sz + String.format("%3d ", val);
             }
             Log.i("Test", sz);
         }
         Log.i("Test", "---------");
-        img = null;
+        img_yuv_i420_data = null;
     }
 
     private void TestYuvI420ConvertNv12(int width, int height) {
         // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
         // 测试时候u高度大于1，可以为2,               height = 4
-        byte[] img = new byte[(int)(width * height * 1.5)];
+        byte[] imgYuvI420Data = new byte[(int)(width * height * 1.5)];
+        byte[] outNv12Data = new byte[(int)(width * height * 1.5)];
         // set y data
         Log.i("Test", String.format("luminance, width: %d, height: %d\n", width, height));
         Log.i("Test", "------------------------------------------------------------");
@@ -196,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
             for (int w = 0; w < width; ++w) {
                 count = count % 128;
                 byte val = (byte)count++;
-                img[h * width + w] = val;
+                imgYuvI420Data[h * width + w] = val;
             }
         }
         // set i420 uv data
@@ -207,13 +210,13 @@ public class MainActivity extends AppCompatActivity {
         for (int h = 0; h <u_height; ++h) {
             for (int w = 0; w < u_width; ++w) {
                 int offset = u_width * h + w;
-                img[u_start + offset] = 1;
-                img[v_start + offset] = 2;
+                imgYuvI420Data[u_start + offset] = 1;
+                imgYuvI420Data[v_start + offset] = 2;
             }
         }
 
         long start = System.currentTimeMillis();
-        boolean ok = ConvertI420ToNV12JNI(width, height, img);
+        boolean ok = ConvertI420ToNV12JNI(width, height, imgYuvI420Data, outNv12Data);
         long end = System.currentTimeMillis();
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
@@ -224,7 +227,8 @@ public class MainActivity extends AppCompatActivity {
         Log.i("Test", "\n");
         Log.i("Test", String.format("Rotated image, new_width: %d, new_height: %d\n", new_width, new_height));
         Log.i("Test", "------------------------------");
-        img = null;
+        imgYuvI420Data = null;
+        outNv12Data = null;
     }
 
     public void onButtonClickYuvI420ConvertNv12Small(View view) {
@@ -243,5 +247,5 @@ public class MainActivity extends AppCompatActivity {
      * which is packaged with this application.
      */
     public native String getDevicesNameFromJNI();
-    public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data);
+    public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
 }

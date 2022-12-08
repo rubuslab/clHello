@@ -3,10 +3,13 @@
 
 # Sets the minimum version of CMake required to build the native library.
 
-cmake_minimum_required(VERSION 3.18.1)
+cmake_minimum_required(VERSION 3.10.1)
+
+# configure import libs
+set(distribution_DIR ${CMAKE_SOURCE_DIR}/..)
 
 # Declares and names the project.
-project("cdx_yuvconvert_i420nv12")
+project("yuvconvert_gpu_i420nv12")
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -14,23 +17,24 @@ project("cdx_yuvconvert_i420nv12")
 # Gradle automatically packages shared libraries with your APK.
 # 设置函数库编译
 add_library( # Sets the name of the library.
-        #ccsharehello
-        jni_cdx_ocl_yuv2nv12
-
+        jni_ocl_yuv2nv12
         # Sets the library as a shared library.
         SHARED
-
         # Provides a relative path to your source file(s).
         native_ocl_i420nv12_lib.cpp Utility.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp)
 
-SET(DIR_3RD_ARM ${CMAKE_SOURCE_DIR}/../prebuilt_arm/)
 
-# include_directories(${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/OpenCL/include)
-include_directories(${CMAKE_SOURCE_DIR}/../
-        ${DIR_3RD_ARM}
-        ${DIR_3RD_ARM}include/)
-message("DIR_3RD_ARM: ${DIR_3RD_ARM}")
-message("DIR_3RD_ARM include: ${DIR_3RD_ARM}include/")
+SET(ARM_LIB_HEADER_DIR ${CMAKE_SOURCE_DIR}/../prebuilt_arm/)
+#${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/OpenCL/include
+SET(LOCAL_OPENCL_HEADER_DIR ${CMAKE_SOURCE_DIR}/../)
+
+include_directories(${LOCAL_OPENCL_HEADER_DIR}
+    ${ARM_LIB_HEADER_DIR}
+    ${ARM_LIB_HEADER_DIR}include/)
+
+SET(ARM_LIB_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
+message("ARM_LIB_DIR: ${ARM_LIB_DIR}")
+message("ARM_LIB_HEADER_DIR include: ${ARM_LIB_HEADER_DIR}include/")
 
 # 打印日志信息
 #       ${ANDROID_ABI} 的作用是获取当前的 CPU 指令集架构
@@ -56,7 +60,6 @@ find_library( # Sets the name of the path variable.
         # Specifies the name of the NDK library that
         # you want CMake to locate.
         log)
-
 # 打印日志库位置
 message("log library path: ${log-lib}")
 
@@ -68,7 +71,7 @@ message("log library path: ${log-lib}")
 #   CMAKE_SOURCE_DIR 指的是当前的文件地址
 #   -L 参数指定动态库的查找路径
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/ -L${DIR_3RD_ARM}lib/arm64-v8a-neon/")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/ -L${ARM_LIB_DIR}")
 message("CMAKE_CXX_FLAGS is : ${CMAKE_CXX_FLAGS}")
 
 # 链接函数库
@@ -79,10 +82,12 @@ message("CMAKE_CXX_FLAGS is : ${CMAKE_CXX_FLAGS}")
 # can link multiple libraries, such as libraries you define in this
 # build script, prebuilt third-party libraries, or system libraries.
 target_link_libraries( # Specifies the target library.
-        jni_cdx_ocl_yuv2nv12
+        jni_ocl_yuv2nv12
+
 
         # 表示 编译 native-lib 模块, 要链接 add 模块
         cdx_OpenCL
+
         # arm
         arm_compute_core
         arm_compute

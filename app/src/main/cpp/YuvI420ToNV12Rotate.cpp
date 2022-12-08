@@ -26,8 +26,8 @@ void YuvI420ToNV12Rotate::Release() {
     delete m_program; m_program = nullptr;
     delete m_queue; m_queue = nullptr;
     delete m_kernel_yuvi420_to_nv12; m_kernel_yuvi420_to_nv12 = nullptr;
-    delete m_input_buff_yuv; m_input_buff_yuv = nullptr;
-    delete m_output_buff_yuv; m_output_buff_yuv = nullptr;
+    delete m_input_cl_buff_yuv; m_input_cl_buff_yuv = nullptr;
+    delete m_output_cl_buff_yuv; m_output_cl_buff_yuv = nullptr;
 }
 
 std::string yuvi420_to_nv12_rotate_opencl_code() { return R_CODE( // ########################## begin of OpenCL C code ####################################################################
@@ -217,13 +217,13 @@ bool YuvI420ToNV12Rotate::Init() {
     const int u_width = m_width / 2;
     const int u_height = m_height / 2;
     m_yuv_buff_size = m_width * m_height * 1.5;
-    m_input_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
-    m_output_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
+    m_input_cl_buff_yuv = new cl::Buffer(*m_context, CL_MEM_READ_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
+    m_output_cl_buff_yuv = new cl::Buffer(*m_context, CL_MEM_WRITE_ONLY, m_yuv_buff_size * sizeof(unsigned char), nullptr, &err);
 
     // bind kernel function parameters
     const int out_uv_width = u_height * 2;
-    err = m_kernel_yuvi420_to_nv12->setArg(0, *m_input_buff_yuv);
-    err = m_kernel_yuvi420_to_nv12->setArg(1, *m_output_buff_yuv);
+    err = m_kernel_yuvi420_to_nv12->setArg(0, *m_input_cl_buff_yuv);
+    err = m_kernel_yuvi420_to_nv12->setArg(1, *m_output_cl_buff_yuv);
     err = m_kernel_yuvi420_to_nv12->setArg(2, m_width);
     err = m_kernel_yuvi420_to_nv12->setArg(3, m_height);
     err = m_kernel_yuvi420_to_nv12->setArg(4, m_width * m_height);
@@ -239,17 +239,17 @@ bool YuvI420ToNV12Rotate::Init() {
     return true;
 }
 
-bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigned char* yuv_i420_img_data) {
+bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data) {
     // debug only, remove comments for debug
     // return ConvertToNV12RotateImpl_HostDebug(width, height, yuv_i420_img_data);
 
     cl_int err = CL_SUCCESS;
-    unsigned char* input_yuv = yuv_i420_img_data;
+    unsigned char* input_yuv = img_yuv_i420_data;
 
     TestCostTime cost_time;
     // upload input data to target device
     cl::Event upload_mem_ev;
-    err = m_queue->enqueueWriteBuffer(*m_input_buff_yuv, CL_FALSE, 0, m_yuv_buff_size,input_yuv, nullptr, &upload_mem_ev);
+    err = m_queue->enqueueWriteBuffer(*m_input_cl_buff_yuv, CL_FALSE, 0, m_yuv_buff_size,input_yuv, nullptr, &upload_mem_ev);
     cost_time.ShowCostTime("Upload memory to device");
 
     // running kernel function
@@ -305,7 +305,7 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
     // std::vector<cl::Event> wait_finish_events;
     // wait_finish_events.push_back(enqueue_ndrange_ev);
     cost_time.Reset();
-    err = m_queue->enqueueReadBuffer(*m_output_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, input_yuv, nullptr, NULL);
+    err = m_queue->enqueueReadBuffer(*m_output_cl_buff_yuv, CL_TRUE, 0, m_yuv_buff_size, out_nv12_data, nullptr, NULL);
     cost_time.ShowCostTime("Downloaded / Copied data from target device");
 
     return err == CL_SUCCESS;
