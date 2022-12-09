@@ -5,7 +5,7 @@
 #include "YuvI420ToNV12Rotate.h"
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_ccsharehello_MainActivity_getDevicesNameFromJNI(
+Java_com_rubus_clhello_MainActivity_getDevicesNameFromJNI(
         JNIEnv* env,
         jobject /* this */) {
     std::string name = GetDevicesName();
@@ -14,7 +14,7 @@ Java_com_example_ccsharehello_MainActivity_getDevicesNameFromJNI(
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_example_ccsharehello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject thiz,
+Java_com_rubus_clhello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject thiz,
                                   jint width, jint height,
                                   jbyteArray j_yuv_i420_data,
                                   jbyteArray j_out_nv12_data) {

@@ -1,4 +1,4 @@
-package com.example.ccsharehello;
+package com.rubus.clhello;
 
 import org.junit.Test;
 

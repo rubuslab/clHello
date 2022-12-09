@@ -1,4 +1,4 @@
-package com.example.ccsharehello;
+package com.rubus.clhello;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -9,7 +9,7 @@ import android.view.View;
 import android.widget.TextView;
 import android.app.AlertDialog;
 
-import com.example.ccsharehello.databinding.ActivityMainBinding;
+import com.rubus.clhello.databinding.ActivityMainBinding;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,8 +17,9 @@ import java.io.FileOutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
-    // Used to load the 'ccsharehello' library on application startup.
+    // Used to load the 'clhello' library on application startup.
     static {
+        System.loadLibrary("OpenCL");
         System.loadLibrary("jni_ocl_yuv2nv12");
         System.loadLibrary("arm_compute_core");
         System.loadLibrary("arm_compute");
@@ -243,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * A native method that is implemented by the 'ccsharehello' native library,
+     * A native method that is implemented by the 'clhello' native library,
      * which is packaged with this application.
      */
     public native String getDevicesNameFromJNI();

@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.ccsharehello'
+    namespace 'com.rubus.clhello'
     compileSdk 32
 
     defaultConfig {
-        applicationId "com.example.ccsharehello"
+        applicationId "com.rubus.clhello"
         minSdk 21
         targetSdk 32
         versionCode 1
