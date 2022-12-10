@@ -4,7 +4,7 @@ cl share hello
 # Check your mobile device support or not?
 http://web.guohuiwang.com/software/opencl_z_android
 
-# How to reference pre-built so libiary in CMake
+# How to reference pre-built so library in CMake
 https://blog.51cto.com/u_14202100/5084568
 https://blog.csdn.net/feixuedudiao/article/details/100581508
 

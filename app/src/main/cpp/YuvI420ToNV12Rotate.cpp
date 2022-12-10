@@ -15,8 +15,12 @@
 #include "utils/ImageLoader.h"
 #include "utils/Utils.h"
 
+#include "arm_compute/core/NEON/kernels/detail/NEColorConvertHelper.inl"
+
+// https://arm-software.github.io/ComputeLibrary/v19.05/
 void hineonn() {
     arm_compute::Image aa;
+    arm_compute::colorconvert_rgb_to_nv12();
 }
 // ---------------test neon---------------------------
 
