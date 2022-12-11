@@ -15,12 +15,12 @@
 #include "utils/ImageLoader.h"
 #include "utils/Utils.h"
 
-#include "arm_compute/core/NEON/kernels/detail/NEColorConvertHelper.inl"
+// #include "arm_compute/core/NEON/kernels/detail/NEColorConvertHelper.inl"
 
 // https://arm-software.github.io/ComputeLibrary/v19.05/
 void hineonn() {
     arm_compute::Image aa;
-    arm_compute::colorconvert_rgb_to_nv12();
+    // arm_compute::colorconvert_rgb_to_nv12();
 }
 // ---------------test neon---------------------------
 
@@ -192,7 +192,7 @@ bool YuvI420ToNV12Rotate::Init() {
     sources.push_back({cl_code.c_str(), cl_code.length()});
 
     m_program = new cl::Program(*m_context, sources);
-    if ((err = m_program->build({target_device}, "-cl-std=CL2.0 -O2")) != CL_SUCCESS) {
+    if ((err = m_program->build({target_device}, "-cl-std=CL2.0 -O2 -cl-fast-relaxed-math")) != CL_SUCCESS) {
         std::string build_error = "building error: " + m_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(target_device);
         LOGI("build opencl code error, %s\n", build_error.c_str());
         return false;
@@ -253,7 +253,7 @@ bool YuvI420ToNV12Rotate::ConvertToNV12RotateImpl(int width, int height, unsigne
     TestCostTime cost_time;
     // upload input data to target device
     cl::Event upload_mem_ev;
-    err = m_queue->enqueueWriteBuffer(*m_input_cl_buff_yuv, CL_FALSE, 0, m_yuv_buff_size,input_yuv, nullptr, &upload_mem_ev);
+    err = m_queue->enqueueWriteBuffer(*m_input_cl_buff_yuv, CL_TRUE, 0, m_yuv_buff_size,input_yuv, nullptr, &upload_mem_ev);
     cost_time.ShowCostTime("Upload memory to device");
 
     // running kernel function

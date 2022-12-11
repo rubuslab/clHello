@@ -2,6 +2,7 @@ package com.rubus.clhello;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -14,6 +15,7 @@ import com.rubus.clhello.databinding.ActivityMainBinding;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,27 +57,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onButtonI420ToNV12Click(View view) {
-        int width = 1280;
-        int height = 720;
-
-        // read data from file
-        String path = getExternalFilesDir("").getAbsolutePath();
-        String filename = path + "/" + "sakura_1280x720_i420.YUV";
-        if (!isFileExist(filename)) {
-            new AlertDialog.Builder(this)
-                    .setTitle("File")
-                    .setMessage("File not exist.\n" + filename)
-                    .show();
-            return;
-        }
-
         try {
-            FileInputStream in = new FileInputStream(filename);
-            int len = in.available();
+            int width = 1280;
+            int height = 720;
+            InputStream is = getResources().openRawResource(R.raw.sakura_1280x720_i420);
+            int len = is.available();
             byte[] i420_yuv = new byte[len];
             byte[] outNv12Data = new byte[len];
-            in.read(i420_yuv);
-            in.close();
+            is.read(i420_yuv);
+            is.close();
+
+            // FileInputStream in = new FileInputStream(filename);
+            // int len = in.available();
+            //byte[] i420_yuv = new byte[len];
+            //byte[] outNv12Data = new byte[len];
+            //in.read(i420_yuv);
+            //in.close();
 
             long start = System.currentTimeMillis();
             boolean ok = ConvertI420ToNV12JNI(width, height, i420_yuv, outNv12Data);
@@ -86,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
             mTextCost.setText(s);
 
             // write to new file
+            String path = getExternalFilesDir("").getAbsolutePath();
             String out_filename = path + "/" + String.format("cl_out_nv12_%dx%d.YUV", width, height);
             FileOutputStream out = new FileOutputStream(out_filename);
             out.write(outNv12Data);
@@ -94,6 +92,11 @@ public class MainActivity extends AppCompatActivity {
             i420_yuv = null;
             outNv12Data = null;
         } catch (Exception e) {
+           String filename = "main/res/raw/sakura_1280x720_i420.YUV";
+           new AlertDialog.Builder(this)
+                    .setTitle("File")
+                    .setMessage("File not exist.\n" + filename)
+                    .show();
             e.printStackTrace();
         }
     }
