@@ -34,11 +34,11 @@
         android:id="@+id/text_cost"
         android:layout_width="324dp"
         android:layout_height="35dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="17dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="90dp"
         android:text="TextView"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/button_i420_nv12_mem" />
+        app:layout_constraintTop_toBottomOf="@+id/button" />
 
     <Button
         android:id="@+id/button_i420_nv12_mem"
@@ -61,5 +61,16 @@
         android:text="To NV12 small data debug"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="54dp"
+        android:onClick="onButtonAbgrToNV12Click"
+        android:text="abgr to nv12 1080*1920"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_i420_nv12_mem" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -46,6 +46,7 @@ public:
 
     bool Init();
     bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data);
+    bool AbgrConvertToNV12RotateImpl(int width, int height, unsigned char* img_abgr_data, unsigned char* out_nv12_data);
 };
 
 class YuvConvertRotateHelper:public Singleton<YuvConvertRotateHelper> {
@@ -70,6 +71,18 @@ public:
         InitI420ToNV32(width, height);
         bool ok = false;
         if (m_yuvi420_to_nv12_obj) { ok = m_yuvi420_to_nv12_obj->ConvertToNV12RotateImpl(width, height, img_yuv_i420_data, out_nv12_data); }
+        if (!ok) { ReleaseYuvI420ToNV12Obj(); }
+        return ok;
+    }
+
+    bool AbgrConvertToNV12Rotate(int width, int height, unsigned char* img_abgr_data, unsigned char* out_nv12_data) {
+        // width and height must equal to 8x
+        // check image width and height is 8x at invoker side.
+        // if (width % 8 != 0 || height % 8 != 0) return false;
+
+        InitI420ToNV32(width, height);
+        bool ok = false;
+        if (m_yuvi420_to_nv12_obj) { ok = m_yuvi420_to_nv12_obj->AbgrConvertToNV12RotateImpl(width, height, img_abgr_data, out_nv12_data); }
         if (!ok) { ReleaseYuvI420ToNV12Obj(); }
         return ok;
     }

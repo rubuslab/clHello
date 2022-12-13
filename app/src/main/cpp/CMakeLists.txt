@@ -5,11 +5,17 @@
 
 cmake_minimum_required(VERSION 3.10.1)
 
-# configure import libs
-set(distribution_DIR ${CMAKE_SOURCE_DIR}/..)
-
 # Declares and names the project.
 project("yuvconvert_gpu_i420nv12")
+
+# 打印日志信息
+#       ${ANDROID_ABI} 的作用是获取当前的 CPU 指令集架构
+#           当本次编译 armeabi-v7a CPU 架构时 , ${ANDROID_ABI} 值为 armeabi-v7a
+#           当本次编译 x86 CPU 架构时 , ${ANDROID_ABI} 值为 x86
+message("CMAKE_SOURCE_DIR : ${CMAKE_SOURCE_DIR}, ANDROID_ABI : ${ANDROID_ABI}")
+
+add_definitions("-D__ARM_NEON__=1")
+set_property(SOURCE ${SRC_FILE}  APPEND_STRING PROPERTY COMPILE_FLAGS " -mfpu=neon")
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -22,25 +28,6 @@ add_library( # Sets the name of the library.
         SHARED
         # Provides a relative path to your source file(s).
         native_ocl_i420nv12_lib.cpp Utility.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp)
-
-
-SET(ARM_LIB_HEADER_DIR ${CMAKE_SOURCE_DIR}/../prebuilt_arm/)
-#${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/OpenCL/include
-SET(LOCAL_OPENCL_HEADER_DIR ${CMAKE_SOURCE_DIR}/../)
-
-include_directories(${LOCAL_OPENCL_HEADER_DIR}
-    ${ARM_LIB_HEADER_DIR}
-    ${ARM_LIB_HEADER_DIR}include/)
-
-SET(ARM_LIB_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
-message("ARM_LIB_DIR: ${ARM_LIB_DIR}")
-message("ARM_LIB_HEADER_DIR include: ${ARM_LIB_HEADER_DIR}include/")
-
-# 打印日志信息
-#       ${ANDROID_ABI} 的作用是获取当前的 CPU 指令集架构
-#           当本次编译 armeabi-v7a CPU 架构时 , ${ANDROID_ABI} 值为 armeabi-v7a
-#           当本次编译 x86 CPU 架构时 , ${ANDROID_ABI} 值为 x86
-message("CMAKE_SOURCE_DIR : ${CMAKE_SOURCE_DIR}, ANDROID_ABI : ${ANDROID_ABI}")
 
 # 到预设的目录查找 log 库 , 将找到的路径赋值给 log-lib
 #       这个路径是 NDK 的 ndk-bundle\platforms\android-29\arch-arm\usr\lib\liblog.so
@@ -70,9 +57,50 @@ message("log library path: ${log-lib}")
 # 参数设置 : 传递 CMAKE_CXX_FLAGS C+= 参数给编译器时 , 在 该参数后面指定库的路径
 #   CMAKE_SOURCE_DIR 指的是当前的文件地址
 #   -L 参数指定动态库的查找路径
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/ -L${ARM_LIB_DIR}")
-message("CMAKE_CXX_FLAGS is : ${CMAKE_CXX_FLAGS}")
+
+# ================ start local opencl library ================
+# ${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/OpenCL/include
+SET(LOCAL_OPENCL_HEADER_DIR ${CMAKE_SOURCE_DIR}/../)
+set(LOCAL_OPENCL_LIBS_DIR ${CMAKE_SOURCE_DIR}/../prebuilt_cdx_ocl_cc_libs/)
+message("local opencl, include dir: ${LOCAL_OPENCL_HEADER_DIR}, libs dir: ${LOCAL_OPENCL_LIBS_DIR}")
+# set cxx include directories and compile flags
+include_directories(${LOCAL_OPENCL_HEADER_DIR})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${LOCAL_OPENCL_LIBS_DIR}")
+# ================ end local opencl library ================
+
+# ================ start prebuilt arm compute library ================
+SET(ARM_LIB_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
+SET(ARM_LIB_HEADER_DIR ${CMAKE_SOURCE_DIR}/../prebuilt_arm/)
+message("ARM_LIB_DIR: ${ARM_LIB_DIR}, ARM_LIB_HEADER_DIR include: ${ARM_LIB_HEADER_DIR}include/")
+# set cxx include directories and compile flags
+include_directories(${ARM_LIB_HEADER_DIR} ${ARM_LIB_HEADER_DIR}include/)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${ARM_LIB_DIR}")
+# ================ end prebuilt arm compute library ================
+
+# ================ start libyuv library ================
+# Sets lib-build-DIR to the path of the desired output directory.
+SET(LIBYUV_BUILD_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
+# Sets lib_src_DIR to the path of the target CMake project.
+set(LIBYUV_SRC_DIR ${CMAKE_SOURCE_DIR}/../libyuv/)
+file(MAKE_DIRECTORY ${LIBYUV_BUILD_DIR})
+
+# Adds the CMakeLists.txt file located in the specified directory
+# as a build dependency.
+add_subdirectory( # Specifies the directory of the CMakeLists.txt file.
+        ${LIBYUV_SRC_DIR}
+        # Specifies the directory for the build outputs.
+        ${LIBYUV_BUILD_DIR})
+
+# Adds the output of the additional CMake build as a prebuilt static
+# library and names it lib_gmath.
+add_library(target_lib_yuv_local STATIC IMPORTED)
+set_target_properties(target_lib_yuv_local PROPERTIES IMPORTED_LOCATION
+        ${LIBYUV_BUILD_DIR}/libyuv_local.a)
+include_directories(${LIBYUV_SRC_DIR}include/)
+#message("LIBYUV_SRC_DIR is : ${LIBYUV_SRC_DIR}include1234/")
+# ================ end libyuv library ================
+
+
 
 # 链接函数库
 #       参数 1 : 本构建脚本要生成的动态库目标
@@ -84,15 +112,18 @@ message("CMAKE_CXX_FLAGS is : ${CMAKE_CXX_FLAGS}")
 target_link_libraries( # Specifies the target library.
         jni_ocl_yuv2nv12
 
-
         # 表示 编译 native-lib 模块, 要链接 add 模块
         cdx_OpenCL
 
-        # arm
+        # arm prebuilt, arm compute library
         arm_compute_core
         arm_compute
         arm_compute_graph
 
         # Links the target library to the log library
         # included in the NDK.
-        ${log-lib})
+        ${log-lib}
+
+        # lib yuv_local
+        target_lib_yuv_local
+        )

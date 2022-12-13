@@ -101,6 +101,52 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void onButtonAbgrToNV12Click(View view) {
+        try {
+            int width = 1088;
+            int height = 1920;
+            InputStream is = getResources().openRawResource(R.raw.fish_1088x1920_abgr);
+            int len = is.available();
+            int out_len = (int)(1920 * 1080 * 1.5);
+            byte[] abgr_data = new byte[len];
+            byte[] outNv12Data = new byte[out_len];
+            is.read(abgr_data);
+            is.close();
+
+            // FileInputStream in = new FileInputStream(filename);
+            // int len = in.available();
+            //byte[] i420_yuv = new byte[len];
+            //byte[] outNv12Data = new byte[len];
+            //in.read(i420_yuv);
+            //in.close();
+
+            long start = System.currentTimeMillis();
+            boolean ok = ConvertAbgrToNV12JNI(width, height, abgr_data, outNv12Data);
+            // i420_yuv
+            long end = System.currentTimeMillis();
+            int cost = (int)(end - start);
+            String s = String.format("%d milliseconds", cost);
+            mTextCost.setText(s);
+
+            // write to new file
+            String path = getExternalFilesDir("").getAbsolutePath();
+            String out_filename = path + "/" + String.format("cl_out_nv12_%dx1080.YUV", height);
+            FileOutputStream out = new FileOutputStream(out_filename);
+            out.write(outNv12Data);
+            out.close();
+
+            abgr_data = null;
+            outNv12Data = null;
+        } catch (Exception e) {
+            String filename = "main/res/raw/sakura_1280x720_i420.YUV";
+            new AlertDialog.Builder(this)
+                    .setTitle("File")
+                    .setMessage("File not exist.\n" + filename)
+                    .show();
+            e.printStackTrace();
+        }
+    }
+
     private void TestYuvI420ConvertNv12_SmallDebug(int width, int height) {
         // 测试时候可以构造 u 长度为 32(8的倍数) + 7,  width = 64 + 14
         // 测试时候u高度大于1，可以为2,               height = 4
@@ -252,4 +298,5 @@ public class MainActivity extends AppCompatActivity {
      */
     public native String getDevicesNameFromJNI();
     public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
+    public native boolean ConvertAbgrToNV12JNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
 }
