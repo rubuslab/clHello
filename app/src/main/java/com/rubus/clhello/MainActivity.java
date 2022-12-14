@@ -103,8 +103,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void onButtonAbgrToNV12Click(View view) {
         try {
-            int width = 1088;
+            // origin image width, height
+            int width_stride = 1088;  // 16x, origin image width
             int height = 1920;
+
+            // destination image width, height. (before rotate)
+            int width = 1080;
+            // int dst_height = height = 1920;
+
             InputStream is = getResources().openRawResource(R.raw.fish_1088x1920_abgr);
             int len = is.available();
             int out_len = (int)(1920 * 1080 * 1.5);
@@ -121,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
             //in.close();
 
             long start = System.currentTimeMillis();
-            boolean ok = ConvertAbgrToNV12JNI(width, height, abgr_data, outNv12Data);
+            boolean ok = ConvertRGBToNV12AndRotateJNI(width, height, width_stride, abgr_data, outNv12Data);
             // i420_yuv
             long end = System.currentTimeMillis();
             int cost = (int)(end - start);
@@ -298,5 +304,5 @@ public class MainActivity extends AppCompatActivity {
      */
     public native String getDevicesNameFromJNI();
     public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
-    public native boolean ConvertAbgrToNV12JNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
+    public native boolean ConvertRGBToNV12AndRotateJNI(int width, int height, int width_stride, byte[] img_data, byte[] out_nv12_data);
 }

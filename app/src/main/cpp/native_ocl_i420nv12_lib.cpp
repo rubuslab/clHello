@@ -3,6 +3,7 @@
 
 #include "Utility.h"
 #include "YuvI420ToNV12Rotate.h"
+#include "RGBConvertNv12Rotate.h"
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_rubus_clhello_MainActivity_getDevicesNameFromJNI(
@@ -44,8 +45,8 @@ Java_com_rubus_clhello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject th
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_rubus_clhello_MainActivity_ConvertAbgrToNV12JNI(JNIEnv *env, jobject thiz,
-                                                         jint width, jint height,
+Java_com_rubus_clhello_MainActivity_ConvertRGBToNV12AndRotateJNI(JNIEnv *env, jobject thiz,
+                                                         jint width, jint height, jint width_stride,
                                                          jbyteArray j_abgr_data,
                                                          jbyteArray j_out_nv12_data) {
     // width and height must equal to 8x
@@ -58,9 +59,8 @@ Java_com_rubus_clhello_MainActivity_ConvertAbgrToNV12JNI(JNIEnv *env, jobject th
     jbyte* out_nv12_data = env->GetByteArrayElements(j_out_nv12_data, NULL);
 
     // bool success = YuvConvertHelper::getInstance().YuvI420ConvertToNV12(width, height, (unsigned char*)img_bytes);
-    bool success = YuvConvertRotateHelper::getInstance().AbgrConvertToNV12Rotate(width, height,
-                                                (unsigned char*)img_abgr_bytes,
-                                                (unsigned char*)out_nv12_data);
+    // bool success = YuvConvertRotateHelper::getInstance().AbgrConvertToNV12Rotate(width, height, (unsigned char*)img_abgr_bytes, (unsigned char*)out_nv12_data);
+    bool success = RGBConvertNv12RotateHelper::getInstance().RgbConvertToNV12RotateImpl(width, height, width_stride, (unsigned char*)img_abgr_bytes, (unsigned char*)out_nv12_data);
 
     // release() to addref()
     env->ReleaseByteArrayElements(j_abgr_data, img_abgr_bytes, 0);

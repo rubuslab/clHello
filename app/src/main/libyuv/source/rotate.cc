@@ -88,9 +88,10 @@ void TransposePlane(const uint8_t* src,
   }
 #else
   // Work across the source in 8x8 tiles
+  int32_t src_stride_x8 = 8 * src_stride;
   while (i >= 8) {
     TransposeWx8(src, src_stride, dst, dst_stride, width);
-    src += 8 * src_stride;  // Go down 8 rows.
+    src += src_stride_x8;  // Go down 8 rows.
     dst += 8;               // Move over 8 columns.
     i -= 8;
   }

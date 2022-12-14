@@ -4,5 +4,11 @@ https://ffmpeg.org/
 1.1）rgb24 to yuv420p(i420)
         ffmpeg -s 1280x720 -pix_fmt rgb24 -i sakura_1280x720.jpg -pix_fmt yuv420p sakura_1280x720_i420.yuv
 
+       convert to abgr
+       ffmpeg -s 1088x1920 -pix_fmt rgb24 -i fish_1088x1920.jpg -pix_fmt abgr fish_1088x1920_abgr.YUV
+
+
 2. yuvplayer.exe
 https://github.com/Tee0125/yuvplayer
+
+注意：转换的文件名的里面如果有尺寸大小一定和真实图片大小保持一致，否则展示可能异常。

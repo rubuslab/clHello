@@ -27,7 +27,7 @@ add_library( # Sets the name of the library.
         # Sets the library as a shared library.
         SHARED
         # Provides a relative path to your source file(s).
-        native_ocl_i420nv12_lib.cpp Utility.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp)
+        native_ocl_i420nv12_lib.cpp Utility.cpp YuvI420ToNV12Rotate.cpp cl_host_debug_kernel_fun.cpp RGBConvertNv12Rotate.cpp)
 
 # 到预设的目录查找 log 库 , 将找到的路径赋值给 log-lib
 #       这个路径是 NDK 的 ndk-bundle\platforms\android-29\arch-arm\usr\lib\liblog.so

@@ -1787,12 +1787,14 @@ int ABGRToI420(const uint8_t* src_abgr,
   }
 #endif
 
+  int32_t src_stride_abgr_x2 = src_stride_abgr * 2;
+  int32_t dst_stride_y_x2 = dst_stride_y * 2;
   for (y = 0; y < height - 1; y += 2) {
     ABGRToUVRow(src_abgr, src_stride_abgr, dst_u, dst_v, width);
     ABGRToYRow(src_abgr, dst_y, width);
     ABGRToYRow(src_abgr + src_stride_abgr, dst_y + dst_stride_y, width);
-    src_abgr += src_stride_abgr * 2;
-    dst_y += dst_stride_y * 2;
+    src_abgr += src_stride_abgr_x2;
+    dst_y += dst_stride_y_x2;
     dst_u += dst_stride_u;
     dst_v += dst_stride_v;
   }
