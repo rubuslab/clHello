@@ -1,0 +1,14 @@
+//
+// Created by Rubus on 12/14/2022.
+//
+
+#ifndef CLHELLO_RGBCONVERTNV12ROTATE_H
+#define CLHELLO_RGBCONVERTNV12ROTATE_H
+
+
+class RGBConvertNv12Rotate {
+
+};
+
+
+#endif //CLHELLO_RGBCONVERTNV12ROTATE_H
