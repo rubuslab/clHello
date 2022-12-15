@@ -44,19 +44,22 @@ public:
     ~YuvI420ToNV12Rotate() { Release(); }
     bool IsSameSize(int w, int h) { return (m_width == w && m_height == h); }
 
-    bool Init();
+    // rotate_to_left_90: true,  rotate to left 90 degree
+    // rotate_to_left_90: false, rotate to right 90 degree
+    bool Init(bool rotate_to_left_90);
     bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data);
 };
 
 class YuvConvertRotateHelper:public Singleton<YuvConvertRotateHelper> {
 private:
+    bool m_rotate_to_left_90 = true;
     YuvI420ToNV12Rotate* m_yuvi420_to_nv12_obj = nullptr;
 
     void InitI420ToNV32(int w, int h) {
         if (m_yuvi420_to_nv12_obj != nullptr && !m_yuvi420_to_nv12_obj->IsSameSize(w, h)) { ReleaseYuvI420ToNV12Obj(); }
         if (m_yuvi420_to_nv12_obj == nullptr) {
             m_yuvi420_to_nv12_obj = new YuvI420ToNV12Rotate(w, h);
-            if (!m_yuvi420_to_nv12_obj->Init()) { ReleaseYuvI420ToNV12Obj(); }
+            if (!m_yuvi420_to_nv12_obj->Init(m_rotate_to_left_90)) { ReleaseYuvI420ToNV12Obj(); }
         }
     }
     void ReleaseYuvI420ToNV12Obj() { delete m_yuvi420_to_nv12_obj; m_yuvi420_to_nv12_obj = nullptr; }
