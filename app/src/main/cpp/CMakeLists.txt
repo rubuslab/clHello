@@ -77,7 +77,9 @@ include_directories(${ARM_LIB_HEADER_DIR} ${ARM_LIB_HEADER_DIR}include/)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${ARM_LIB_DIR}")
 # ================ end prebuilt arm compute library ================
 
-# ================ start libyuv library ================
+
+#[[
+# ================ start libgit_yuv library ================
 # Sets lib-build-DIR to the path of the desired output directory.
 SET(LIBGITYUV_BUILD_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
 # Sets lib_src_DIR to the path of the target CMake project.
@@ -98,7 +100,33 @@ set_target_properties(target_lib_yuv_local PROPERTIES IMPORTED_LOCATION
         ${LIBGITYUV_BUILD_DIR}/libgit_yuv.a)
 include_directories(${LIBGITYUV_SRC_DIR}include/)
 #message("LIBGITYUV_SRC_DIR is : ${LIBGITYUV_SRC_DIR}include1234/")
-# ================ end libyuv library ================
+# ================ end libgit_yuv library ================
+]]
+
+
+
+# ================ start librk_yuv library ================
+# Sets lib-build-DIR to the path of the desired output directory.
+SET(LIBRK_YUV_BUILD_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
+# Sets lib_src_DIR to the path of the target CMake project.
+set(LIBRK_YUV_SRC_DIR ${CMAKE_SOURCE_DIR}/../librk_yuv/libyuv/)
+file(MAKE_DIRECTORY ${LIBRK_YUV_BUILD_DIR})
+
+# Adds the CMakeLists.txt file located in the specified directory
+# as a build dependency.
+add_subdirectory( # Specifies the directory of the CMakeLists.txt file.
+        ${LIBRK_YUV_SRC_DIR}
+        # Specifies the directory for the build outputs.
+        ${LIBRK_YUV_BUILD_DIR})
+
+# Adds the output of the additional CMake build as a prebuilt static
+# library and names it lib_gmath.
+add_library(target_lib_rk_yuv STATIC IMPORTED)
+set_target_properties(target_lib_rk_yuv PROPERTIES IMPORTED_LOCATION
+        ${LIBRK_YUV_BUILD_DIR}/librk_yuv.a)
+include_directories(${LIBRK_YUV_SRC_DIR}include/)
+#message("LIBRK_YUV_SRC_DIR is : ${LIBRK_YUV_SRC_DIR}include1234/")
+# ================ end librk_yuv library ================
 
 
 
@@ -125,5 +153,6 @@ target_link_libraries( # Specifies the target library.
         ${log-lib}
 
         # lib yuv_local
-        target_lib_yuv_local
+        # target_lib_yuv_local
+        target_lib_rk_yuv
         )

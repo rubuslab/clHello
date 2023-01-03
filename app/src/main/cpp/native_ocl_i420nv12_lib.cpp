@@ -15,7 +15,7 @@ Java_com_rubus_clhello_MainActivity_getDevicesNameFromJNI(
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_rubus_clhello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject thiz,
+Java_com_rubus_clhello_MainActivity_ConvertI420ToNV12ClJNI(JNIEnv *env, jobject thiz,
                                   jint width, jint height,
                                   jbyteArray j_yuv_i420_data,
                                   jbyteArray j_out_nv12_data) {
@@ -29,7 +29,7 @@ Java_com_rubus_clhello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject th
     jbyte* out_nv12_data = env->GetByteArrayElements(j_out_nv12_data, NULL);
 
     // bool success = YuvConvertHelper::getInstance().YuvI420ConvertToNV12(width, height, (unsigned char*)img_bytes);
-    bool success = YuvConvertRotateHelper::getInstance().YuvI420ConvertToNV12Rotate(width,
+    bool success = YuvConvertRotateClHelper::getInstance().YuvI420ConvertToNV12Rotate(width,
                                                            height,
                                                            (unsigned char*)img_i420_bytes,
                                                            (unsigned char*)out_nv12_data);
@@ -45,7 +45,7 @@ Java_com_rubus_clhello_MainActivity_ConvertI420ToNV12JNI(JNIEnv *env, jobject th
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_rubus_clhello_MainActivity_ConvertRGBToNV12AndRotateJNI(JNIEnv *env, jobject thiz,
+Java_com_rubus_clhello_MainActivity_ConvertRGBToNV12AndRotateLibYuvJNI(JNIEnv *env, jobject thiz,
                                                          jint width, jint height, jint width_stride,
                                                          jbyteArray j_abgr_data,
                                                          jbyteArray j_out_nv12_data) {
@@ -60,7 +60,7 @@ Java_com_rubus_clhello_MainActivity_ConvertRGBToNV12AndRotateJNI(JNIEnv *env, jo
 
     // bool success = YuvConvertHelper::getInstance().YuvI420ConvertToNV12(width, height, (unsigned char*)img_bytes);
     // bool success = YuvConvertRotateHelper::getInstance().AbgrConvertToNV12Rotate(width, height, (unsigned char*)img_abgr_bytes, (unsigned char*)out_nv12_data);
-    bool success = RGBConvertNv12RotateHelper::getInstance().RgbConvertToNV12RotateImpl(width, height, width_stride, (unsigned char*)img_abgr_bytes, (unsigned char*)out_nv12_data);
+    bool success = RGBConvertNv12RotateLibYuvHelper::getInstance().RgbConvertToNV12RotateImpl(width, height, width_stride, (unsigned char*)img_abgr_bytes, (unsigned char*)out_nv12_data);
 
     // release() to addref()
     env->ReleaseByteArrayElements(j_abgr_data, img_abgr_bytes, 0);

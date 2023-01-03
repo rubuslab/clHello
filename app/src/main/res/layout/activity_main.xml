@@ -47,7 +47,7 @@
         android:layout_marginStart="10dp"
         android:layout_marginTop="19dp"
         android:onClick="onButtonClickYuvI420ConvertNv12InMem"
-        android:text="I420 to nv12 - mem 1920 x 1080"
+        android:text="I420 to nv12 - mem 1920 x 1080 -Cl"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/button_i420_to_nv12" />
 
@@ -69,7 +69,7 @@
         android:layout_marginStart="10dp"
         android:layout_marginTop="54dp"
         android:onClick="onButtonAbgrToNV12Click"
-        android:text="abgr to nv12 1080*1920"
+        android:text="abgr to nv12 1080*1920 -libyuv"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/button_i420_nv12_mem" />
 

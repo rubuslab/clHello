@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
             //in.close();
 
             long start = System.currentTimeMillis();
-            boolean ok = ConvertI420ToNV12JNI(width, height, i420_yuv, outNv12Data);
+            boolean ok = ConvertI420ToNV12ClJNI(width, height, i420_yuv, outNv12Data);
             // i420_yuv
             long end = System.currentTimeMillis();
             int cost = (int)(end - start);
@@ -127,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
             //in.close();
 
             long start = System.currentTimeMillis();
-            boolean ok = ConvertRGBToNV12AndRotateJNI(width, height, width_stride, abgr_data, outNv12Data);
+            boolean ok = ConvertRGBToNV12AndRotateLibYuvJNI(width, height, width_stride, abgr_data, outNv12Data);
             // i420_yuv
             long end = System.currentTimeMillis();
             int cost = (int)(end - start);
@@ -207,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
         // start convert
 
         long start = System.currentTimeMillis();
-        boolean ok = ConvertI420ToNV12JNI(width, height, img_yuv_i420_data, outNv12Data);
+        boolean ok = ConvertI420ToNV12ClJNI(width, height, img_yuv_i420_data, outNv12Data);
         long end = System.currentTimeMillis();
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
@@ -272,7 +272,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         long start = System.currentTimeMillis();
-        boolean ok = ConvertI420ToNV12JNI(width, height, imgYuvI420Data, outNv12Data);
+        boolean ok = ConvertI420ToNV12ClJNI(width, height, imgYuvI420Data, outNv12Data);
         long end = System.currentTimeMillis();
         int cost = (int)(end - start);
         String s = String.format("%d milliseconds", cost);
@@ -303,6 +303,6 @@ public class MainActivity extends AppCompatActivity {
      * which is packaged with this application.
      */
     public native String getDevicesNameFromJNI();
-    public native boolean ConvertI420ToNV12JNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
-    public native boolean ConvertRGBToNV12AndRotateJNI(int width, int height, int width_stride, byte[] img_data, byte[] out_nv12_data);
+    public native boolean ConvertI420ToNV12ClJNI(int width, int height, byte[] img_data, byte[] out_nv12_data);
+    public native boolean ConvertRGBToNV12AndRotateLibYuvJNI(int width, int height, int width_stride, byte[] img_data, byte[] out_nv12_data);
 }

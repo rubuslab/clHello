@@ -50,7 +50,7 @@ public:
     bool ConvertToNV12RotateImpl(int width, int height, unsigned char* img_yuv_i420_data, unsigned char* out_nv12_data);
 };
 
-class YuvConvertRotateHelper:public Singleton<YuvConvertRotateHelper> {
+class YuvConvertRotateClHelper:public Singleton<YuvConvertRotateClHelper> {
 private:
     bool m_rotate_to_left_90 = true;
     YuvI420ToNV12Rotate* m_yuvi420_to_nv12_obj = nullptr;

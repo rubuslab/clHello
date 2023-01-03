@@ -10,7 +10,7 @@
 #include "libyuv.h"
 #include "Singleton.h"
 
-class RGBConvertNv12Rotate {
+class RGBConvertNv12RotateLibYuv {
 private:
     // origin image w x h
     int m_width_stride = 0;
@@ -45,8 +45,8 @@ private:
     void ReleaseBuffer();
 
 public:
-    RGBConvertNv12Rotate(int width, int height, int width_stride): m_width(width), m_height(height), m_width_stride(width_stride) {}
-    ~RGBConvertNv12Rotate() { ReleaseBuffer(); }
+    RGBConvertNv12RotateLibYuv(int width, int height, int width_stride): m_width(width), m_height(height), m_width_stride(width_stride) {}
+    ~RGBConvertNv12RotateLibYuv() { ReleaseBuffer(); }
 
     bool Init();
     bool IsSameSize(int w, int h) { return (m_width == w && m_height == h); }
@@ -60,14 +60,14 @@ public:
 };
 
 
-class RGBConvertNv12RotateHelper:public Singleton<RGBConvertNv12RotateHelper> {
+class RGBConvertNv12RotateLibYuvHelper:public Singleton<RGBConvertNv12RotateLibYuvHelper> {
 private:
-    RGBConvertNv12Rotate* m_rgb_to_nv12_obj = nullptr;
+    RGBConvertNv12RotateLibYuv* m_rgb_to_nv12_obj = nullptr;
 
     void InitRgbToNV12(int w, int h, int w_stride) {
         if (m_rgb_to_nv12_obj != nullptr && !m_rgb_to_nv12_obj->IsSameSize(w, h)) { ReleaseObject(); }
         if (m_rgb_to_nv12_obj == nullptr) {
-            m_rgb_to_nv12_obj = new RGBConvertNv12Rotate(w, h, w_stride);
+            m_rgb_to_nv12_obj = new RGBConvertNv12RotateLibYuv(w, h, w_stride);
             if (!m_rgb_to_nv12_obj->Init()) { ReleaseObject(); }
         }
     }

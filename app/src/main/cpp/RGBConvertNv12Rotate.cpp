@@ -11,12 +11,12 @@
 #include "RGBConvertNv12Rotate.h"
 
 
-void RGBConvertNv12Rotate::ReleaseBuffer() {
+void RGBConvertNv12RotateLibYuv::ReleaseBuffer() {
     delete []m_i420_buff; m_i420_buff = nullptr;
     delete []m_i420_uv_planes_buff; m_i420_uv_planes_buff = nullptr;
 }
 
-bool RGBConvertNv12Rotate::Init() {
+bool RGBConvertNv12RotateLibYuv::Init() {
     if (!IsSupportedWidth()) return false;
     m_i420_buff = new unsigned char[m_width * m_height * 1.5];
     m_i420_uv_planes_buff = new unsigned char[m_width * m_height * 0.5];
@@ -26,7 +26,7 @@ bool RGBConvertNv12Rotate::Init() {
 // return value
 //  0: success
 // -1: failed
-int RGBConvertNv12Rotate::Y_U_V_2PlanesRotate(const uint8_t* src_y, int src_stride_y,
+int RGBConvertNv12RotateLibYuv::Y_U_V_2PlanesRotate(const uint8_t* src_y, int src_stride_y,
                        const uint8_t* src_v_u, int src_stride_v,
                        uint8_t* dst_y, int dst_stride_y,
                        uint8_t* dst_u_v, int dst_stride_u_v,
@@ -71,7 +71,7 @@ int RGBConvertNv12Rotate::Y_U_V_2PlanesRotate(const uint8_t* src_y, int src_stri
 
 // 1. abgr -> i420
 // 2. i420 -> rotate 270 r_nv12
-bool RGBConvertNv12Rotate::ConvertImpl(uint8_t* src_abgr, int32_t width, int32_t height, int width_stride, uint8_t* dst_r_nv12) {
+bool RGBConvertNv12RotateLibYuv::ConvertImpl(uint8_t* src_abgr, int32_t width, int32_t height, int width_stride, uint8_t* dst_r_nv12) {
     int source_width = width_stride;
     int source_height = height;
 
@@ -158,7 +158,7 @@ bool RGBConvertNv12Rotate::ConvertImpl(uint8_t* src_abgr, int32_t width, int32_t
 //
 // destination image:
 // w: width, h: height (before rotate)
-bool RGBConvertNv12Rotate::AbgrConvertToNV12RotateImpl(int width, int height, int width_stride,
+bool RGBConvertNv12RotateLibYuv::AbgrConvertToNV12RotateImpl(int width, int height, int width_stride,
                                                        unsigned char* img_abgr_data, unsigned char* out_nv12_data) {
     return ConvertImpl(img_abgr_data, width, height, width_stride, out_nv12_data);
 }
