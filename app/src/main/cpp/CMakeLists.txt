@@ -81,7 +81,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${ARM_LIB_DIR}")
 # Sets lib-build-DIR to the path of the desired output directory.
 SET(LIBYUV_BUILD_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/)
 # Sets lib_src_DIR to the path of the target CMake project.
-set(LIBYUV_SRC_DIR ${CMAKE_SOURCE_DIR}/../libyuv/)
+set(LIBYUV_SRC_DIR ${CMAKE_SOURCE_DIR}/../libgit_yuv/)
 file(MAKE_DIRECTORY ${LIBYUV_BUILD_DIR})
 
 # Adds the CMakeLists.txt file located in the specified directory
@@ -95,7 +95,7 @@ add_subdirectory( # Specifies the directory of the CMakeLists.txt file.
 # library and names it lib_gmath.
 add_library(target_lib_yuv_local STATIC IMPORTED)
 set_target_properties(target_lib_yuv_local PROPERTIES IMPORTED_LOCATION
-        ${LIBYUV_BUILD_DIR}/libyuv_local.a)
+        ${LIBYUV_BUILD_DIR}/libgit_yuv.a)
 include_directories(${LIBYUV_SRC_DIR}include/)
 #message("LIBYUV_SRC_DIR is : ${LIBYUV_SRC_DIR}include1234/")
 # ================ end libyuv library ================

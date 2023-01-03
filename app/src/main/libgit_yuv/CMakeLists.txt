@@ -10,7 +10,7 @@ SET ( ly_base_dir	${PROJECT_SOURCE_DIR} )
 SET ( ly_src_dir	${ly_base_dir}/source )
 SET ( ly_inc_dir	${ly_base_dir}/include )
 SET ( ly_tst_dir	${ly_base_dir}/unit_test )
-SET ( ly_lib_name	yuv )
+SET ( ly_lib_name	git_yuv )
 SET ( ly_lib_static	${ly_lib_name} )
 SET ( ly_lib_shared	${ly_lib_name}_shared )
 
